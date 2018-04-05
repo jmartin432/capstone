@@ -36,14 +36,15 @@
                         <span>Alignment Radius: <% alignment_radius %></span><br>
                         <input type="range" min="30" max="100" v-model="alignment_radius"><br>
                         <span>Separation Radius: <% separation_radius %></span><br>
-                        <input type="range" min="5" max="30" v-model="separation_radius"><br>
+                        <input type="range" min="1" max="10" v-model="separation_radius"><br>
                         <span>Separation Weight: <% separation_weight %></span><br>
                         <input type="range" min=".01" max="5" step=".1" v-model="separation_weight"><br>
                         <span>Cohesion Radius: <% cohesion_radius %></span><br>
                         <input type="range" min="5" max="100" v-model="cohesion_radius"><br>
                         <span>Cohesion Weight: <% cohesion_weight %></span><br>
                         <input type="range" min=".01" max="5" step=".1" v-model="cohesion_weight"><br>
-                        <span>Current Population: <% population %></span><br>
+                        <span>Current Population: <% agents.length %></span><br>
+                        <span>Current Tick: <% tick %></span><br>
                     </div>
                 </td>
             </tr>
@@ -58,80 +59,95 @@
 
     let animationId = "";
 
-    class Agent{
-        constructor(id, x, y, vx, vy, scale_factor, speed_factor, color) {
+    // Agent Class
+    class Agent {
+        constructor(id, pos, vel, scale_factor, speed_factor, color) {
             this.id = id;
-            this.pos = [x, y];
-            this.vel = [vx, vy];
-            this.bearing = Math.atan2(this.vel[1], this.vel[0]) * 180 / Math.PI;
-            this.scale_factor = scale_factor;
-            this.speed_factor = speed_factor;
+            this.pos = pos;
+            this.vel = vel;
+            this.acceleration = new Vector (0,0);
+            this.targetVel = this.vel;
+            this.scaleFactor = scale_factor;
+            this.speedFactor = speed_factor;
             this.color = color;
-        }
-
-        getCohesionAcc (neighbors, weight){
-            let position_sum = [0, 0], count = 0, group_center = [], difference = [0, 0];
-            if (neighbors.length === 0){
-                return [0, 0];
-            }
-            else{
-                for(let i = 0; i < neighbors.length; i++){
-                    position_sum = math.add(position_sum, neighbors[i].pos);
-                    count++;
-                }
-                group_center = math.divide(position_sum, count);
-                difference = math.subtract(group_center, this.pos);
-                return math.multiply(difference, weight);
-            }
 
         }
 
-        getSeparationAcc (neighbors, weight) {
-            let acceleration = [0, 0], difference = [0, 0];
-            if (neighbors.length === 0) {
-                return acceleration;
+
+        getBearing (){
+            return Math.atan2(this.vel.y, this.vel.x) * 180 / Math.PI;
+        }
+
+        getScaleFactor (){
+            return this.scaleFactor;
+        }
+
+        updateVelocity (){
+            this.velocity = Vector.add(this.velocity, this.acceleration);
+            this.velocity.normalize();
+        }
+        updatePosition (){
+            this.velocity = Vector.add(this.position, this.velocity);
+        }
+
+        resetAcceleration (){
+            this.acceleration.x = 0;
+            this.acceleration.y = 0;
+        }
+    }
+
+
+    // Vector Class
+    class Vector {
+        constructor(x, y) {
+            this.x = x;
+            this.y = y;
+        }
+
+        normalize (){
+            let mag = this.magnitude();
+            if (mag === 0){
+                return;
             }
-            else {
-                for (let i = 0; i < neighbors.length; i++) {
-                    difference = math.subtract(this.pos, neighbors[i].pos);
-                    acceleration = math.add(acceleration, difference);
-                }
-            }
-            return math.multiply(acceleration, weight);
+            return this.scaleBy(1 / mag);
+
+        }
+
+        magnitude (){
+            return Math.sqrt(((this.x) * (this.x) + (this.y) * (this.y)));
+
+        }
+
+        scaleBy (v1, val){
+            return new Vector(v1.x * val, v1.y * val);
+
+        }
+
+        distanceSquared (v1, v2){
+            return ((v1.x - v2.x) * (v1.x - v2.x) + (v1.y - v2.y) * (v1.y - v2.y));
+        }
+
+        getX (){
+            return this.x
+        }
+
+        getY (){
+            return this.y
+        }
+
+        distance (v1, v2) {
+            return Math.sqrt(((v1.x - v2.x) * (v1.x - v2.x) + (v1.y - v2.y) * (v1.y - v2.y)));
+        }
+
+        add (v1, v2) {
+            return new Vector((v1.x + v2.x), v1.y + v2.y);
+        }
+
+        subtract (v1, v2) {
+            return new Vector((v1.x - v2.x), v1.y - v2.y);
         }
 
 
-        getNewVelocity (neighbors){
-            let velocity_sum = this.vel;
-            let position_sum = [0, 0];
-            let count = 1;
-            let vectorToCOM = [0, 0];
-            let newVelocity = [];
-            let separationAcceleration = [0, 0];
-            let difference = [0, 0];
-            let centerOfMass = [0, 0];
-            let cohesionAcceleration = [0, 0];
-
-
-            for(let i = 0; i < neighbors.length; i++){
-                velocity_sum = math.add(velocity_sum, neighbors[i].vel);
-                position_sum = math.add(position_sum, neighbors[i].pos);
-                count++;
-                if (math.distance(this.pos, neighbors[i].pos) <= app.separation_radius){
-                    difference = math.subtract(this.pos, neighbors[i].pos);
-                    separationAcceleration = math.add(separationAcceleration, difference);
-                }
-            }
-            separationAcceleration = math.multiply(separationAcceleration, app.separation_weight);
-            newVelocity = math.divide(velocity_sum, count);
-            centerOfMass = math.divide(position_sum, count-1);
-            vectorToCOM = math.subtract(centerOfMass, this.pos);
-            cohesionAcceleration = math.multiply(vectorToCOM, app.cohesion_weight);
-            newVelocity = math.add(newVelocity, separationAcceleration);
-            newVelocity = math.add(newVelocity, cohesionAcceleration);
-
-            this.vel = newVelocity;
-        }
     }
 
 
@@ -145,23 +161,19 @@
             initial_population: 10,
             population: 0,
             alignment_radius: 100,
-            separation_weight: .009,
+            separation_weight: .1,
             separation_radius: 20,
-            cohesion_weight: .005,
+            cohesion_weight: .1,
             cohesion_radius: 50,
+            tick: 0,
+            updateRate: 10,
         },
 
         delimiters: ["<%","%>"],
 
-        watch: {
-            agents: function (val) {
-                this.population = val.length;
-            },
-        },
-
         methods: {
             transformString: function(agent) {
-                return "translate(" + agent.pos[0] + "," + agent.pos[1] + ")rotate(" + agent.bearing + ")scale(" + agent.scale_factor + ")";
+                return "translate(" + agent.pos.getX() + "," + agent.pos.getY() + ")rotate(" + agent.getBearing() + ")scale(" + agent.getScaleFactor() + ")";
             },
 
             pathString: function(agent){
@@ -171,111 +183,83 @@
             createAgents: function(){
                 for (let i = 0; i < this.initial_population; i++) {
                     let id = i;
-                    let x = Math.floor(Math.random() * 400);
-                    let y = Math.floor(Math.random() * 400);
-                    let vx = Math.random() * 2 - 1;
-                    let vy = Math.random() * 2 - 1;
+                    let position = new Vector(Math.floor(Math.random() * 350 + 25), Math.floor(Math.random() * 350 + 25));
+                    let velocity = new Vector ((Math.random() * 2 - 1), (Math.random() * 2 - 1));
+                    velocity.normalize();
                     let color = "plum";
-                    let agent = new Agent(id, x, y, vx, vy, .4, 3, color);
+                    let agent = new Agent(id, position, velocity, .4, 2, color);
                     this.agents.push(agent);
                 }
             },
 
-            updateAgents: function(){
+            updateAgents: function() {
+
+                let agent = {};
+                let difference = new Vector (0,0);
+                let newVelocity = new Vector (0,0);
 
                 if (this.animating) {
                     window.requestAnimationFrame(this.updateAgents);
+                    this.tick++;
+                }
+
+                for (let i = 0; i < this.agents.length; i++){
+                    agent = this.agents[i];
+                    if (agent.targetVel != agent.vel){
+                        agent.updateVelocity;
+                        agent.updatePosition;
+                        continue;
+                    }
+                    else{
+                        agent.resetAcceleration();
+
+                    //    First check if it is at a wall.
+                        if (agent.pos.x + agent.vel.x <= 20 || agent.pos.x + agent.vel.x >= 380) {
+                            agent.targetVel.x = -1 * agent.vel.x;
+                            agent.setAcceleration;
+
+
+                        else if (agent.pos.y + agent.vel.y <= 20 || agent.pos.x + agent.vel.y >= 380) {
+                            agent.targetVel.y = -1 * agent.vel.y;
+                            agent.setAcceleration;
+
+
+                        }
+                    }
+
                 }
 
 
-                let agent = {};
-                let neighbors = [];
-                let velocity_magnitude = 0;
-                for (let j = 0; j < this.population; j++) {
-                    agent = this.agents[j];
-                    neighbors = [];
-
-                    // find neighbors
-
-                    for (let i = 0; i < this.population; i++) {
-                        if (i === j){
-                            continue;
-                        }
-                        if (math.distance(agent.pos, this.agents[i].pos) > 0 &&
-                            math.distance(agent.pos, this.agents[i].pos) <= this.alignment_radius) {
-                            neighbors.push(this.agents[i]);
-                        }
-
-
-                        // if (math.distance(agent.pos, this.agents[i].pos) > 0 &&
-                        //     math.distance(agent.pos, this.agents[i].pos) <= this.cohesion_radius) {
-                        //     cohesion_neighbors.push(this.agents[i]);
-                        //     neighbors = true;
-                        // }
-                        //
-                        // if (math.distance(agent.pos, this.agents[i].pos) > 0 &&
-                        //     math.distance(agent.pos, this.agents[i].pos) <= this.separation_radius) {
-                        //     separation_neighbors.push(this.agents[i]);
-                        //     neighbors = true;
-                        // }
-                    }
-
-
-                    //if the agent has neighbors then find the new velocity vector
-                    if (neighbors.length > 0) {
-                        agent.getNewVelocity(neighbors);
-
-                        // agent.vel = math.add(agent.vel, agent.getSeparationAcc(separation_neighbors, this.separation_weight));
-
-                        // agent.vel = math.add(agent.vel, agent.getCohesionAcc(cohesion_neighbors, this.cohesion_weight));
-
-                    }
 
 
 
-                    // normalize velocity
-                    velocity_magnitude = math.distance(agent.vel, [0, 0]);
-                    agent.vel = math.divide(agent.vel, velocity_magnitude);
+                // let agent = {};
+                // let neighbors = [];
+                // let acceleration = [];
+
+                // for (let j = 0; j < this.population; j++) {
+                // agent = this.agents[j];
+                // neighbors = [];
+                //
+                // if (agent.vel != agent.targetVel){
+                //     acceleration = math.subtract(agent.targetVel, agent.vel);
+                //     acceleration = math. multiply(acceleration, 0.1);
+                // }
+                //
+                // agent.vel = math.add(agent.vel, acceleration);
+                // agent.vel = normalize(agent.vel);
+                // continue;
+                //
+                // if (agent.pos[0] >= 380 || agent.pos[0] <= 0) {
+                //     agent.targetVel = [-1 * agent.vel[0], agent.vel[1]];
+                // }
+                //
+                // if (agent.pos[1] >= 380 || agent.pos[1] <= 0) {
+                //     agent.targetVel = [agent.vel[0], -1 * agent.vel[1]];
+                // }
 
 
-
-
-
-                    // Checking Boundaries
-                    if (agent.pos[0] + agent.vel[0] <= 0 || agent.pos[0] + agent.vel[0] >= 400){
-                        agent.vel[0] *= -1;
-                    }
-                    if (agent.pos[1] + agent.vel[1] <= 0 || agent.pos[1] + agent.vel[1] >= 400){
-                        agent.vel[1] *= -1;
-                    }
-
-
-
-                    // if (agent.pos[0] + agent.vel[0] <= 0){
-                    //     agent.pos[0] = 400;
-                    //     agent.pos[1] = 400 - agent.pos[1];
-                    // }
-                    // else if (agent.pos[0] + agent.vel[0] >= 400){
-                    //     agent.pos[0] = 0;
-                    //     agent.pos[1] = 400 - agent.pos[1];
-                    // }
-                    //
-                    // if (agent.pos[1] + agent.vel[1] <= 0){
-                    //     agent.pos[1] = 400;
-                    //     agent.pos[0] = 400 - agent.pos[0];
-                    // }
-                    // else if (agent.pos[1] + agent.vel[1] >= 400){
-                    //     agent.pos[1] = 0;
-                    //     agent.pos[0] = 400 - agent.pos[0];
-                    // }
-
-
-                    //Update bearing and position
-                    agent.bearing = Math.atan2(agent.vel[1], agent.vel[0]) * 180 / Math.PI;
-                    agent.pos = math.add(agent.pos, math.multiply(agent.vel, agent.speed_factor));
-
-
-                }
+                // agent.pos = math.add(agent.pos, math.multiply(agent.vel, agent.speed_factor));
 
             },
 
@@ -290,8 +274,10 @@
 
             reset: function(){
                 this.animating = false;
+
                 window.cancelAnimationFrame(animationId);
                 this.agents = [];
+                this.tick = 0;
                 app.createAgents();
             },
 
@@ -311,10 +297,114 @@
 
     app.createAgents();
 
+// for (let i = 0; i < this.population; i++) {
+                        //     if (i === j) {
+                        //         continue;
+                        //     }
+                        //     if (math.distance(agent.pos, this.agents[i].pos) <= this.alignment_radius) {
+                        //         neighbors.push(this.agents[i]);
+                        //     }
+                        //
+                        // }
 
 
+                        //if the agent has neighbors then find the new velocity vector
+                        // if (neighbors.length > 0) {
+                        //     agent.getNewVelocity(neighbors);
+                        //
+                        //     // agent.vel = math.add(agent.vel, agent.getSeparationAcc(separation_neighbors, this.separation_weight));
+                        //
+                        //     // agent.vel = math.add(agent.vel, agent.getCohesionAcc(cohesion_neighbors, this.cohesion_weight));
+                        //
+                        // }
+                        // velocity_magnitude = math.distance(agent.vel, [0, 0]);
+                        // agent.vel = math.divide(agent.vel, velocity_magnitude);
+                        //
+                        // if (agent.pos[0] + agent.vel[0] <= 20 || agent.pos[0] + agent.vel[0] >= 380) {
+                        //     agent.vel[0] *= -1;
+                        // }
+                        // if (agent.pos[1] + agent.vel[1] <= 20 || agent.pos[1] + agent.vel[1] >= 380) {
+                        //     agent.vel[1] *= -1;
+                        // }
+                        //
+                        // agent.bearing = Math.atan2(agent.vel[1], agent.vel[0]) * 180 / Math.PI;
+                        // agent.pos = math.add(agent.pos, math.multiply(agent.vel, agent.speed_factor));
+
+                    // }
+
+                    // velocity_magnitude = math.distance(agent.vel, [0, 0]);
+                    // agent.vel = math.divide(agent.vel, velocity_magnitude);
+                    //
+                    //
+                    //
+
+
+
+    <!--getCohesionAcc (neighbors, weight){-->
+        //     let position_sum = [0, 0], count = 0, group_center = [], difference = [0, 0];
+        //     if (neighbors.length === 0){
+        //         return [0, 0];
+        //     }
+        //     else{
+        //         for(let i = 0; i < neighbors.length; i++){
+        //             position_sum = math.add(position_sum, neighbors[i].pos);
+        //             count++;
+        //         }
+        //         group_center = math.divide(position_sum, count);
+        //         difference = math.subtract(group_center, this.pos);
+        //         return math.multiply(difference, weight);
+        //     }
+        //
+        // }
+        //
+        // getSeparationAcc (neighbors, weight) {
+        //     let acceleration = [0, 0], difference = [0, 0];
+        //     if (neighbors.length === 0) {
+        //         return acceleration;
+        //     }
+        //     else {
+        //         for (let i = 0; i < neighbors.length; i++) {
+        //             difference = math.subtract(this.pos, neighbors[i].pos);
+        //             acceleration = math.add(acceleration, difference);
+        //         }
+        //     }
+        //     return math.multiply(acceleration, weight);
+        // }
+
+// getNewVelocity (neighbors){
+        //     let velocity_sum = this.vel;
+        //     let position_sum = [0, 0];
+        //     let count = 1;
+        //     let vectorToCOM = [0, 0];
+        //     let newVelocity = [];
+        //     let separationAcceleration = [0, 0];
+        //     let difference = [0, 0];
+        //     let centerOfMass = [0, 0];
+        //     let cohesionAcceleration = [0, 0];
+        //
+        //
+        //     for(let i = 0; i < neighbors.length; i++){
+        //         velocity_sum = math.add(velocity_sum, neighbors[i].vel);
+        //         position_sum = math.add(position_sum, neighbors[i].pos);
+        //         count++;
+        //         if (math.distance(this.pos, neighbors[i].pos) <= app.separation_radius){
+        //             difference = math.subtract(this.pos, neighbors[i].pos);
+        //             separationAcceleration = math.add(separationAcceleration, difference);
+        //         }
+        //     }
+        //     separationAcceleration = math.multiply(separationAcceleration, app.separation_weight);
+        //     newVelocity = math.divide(velocity_sum, count);
+        //     centerOfMass = math.divide(position_sum, count-1);
+        //     vectorToCOM = math.subtract(centerOfMass, this.pos);
+        //     // cohesionAcceleration = math.multiply(vectorToCOM, app.cohesion_weight);
+        //     newVelocity = math.add(newVelocity, separationAcceleration);
+        //     // newVelocity = math.add(newVelocity, cohesionAcceleration);
+        //
+        //     this.vel = newVelocity;
 
 </script>
 </body>
 </html>
+
+
 
