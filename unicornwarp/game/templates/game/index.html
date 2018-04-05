@@ -63,19 +63,26 @@
     class Agent {
         constructor(id, pos, vel, scale_factor, speed_factor, color) {
             this.id = id;
-            this.pos = pos;
-            this.vel = vel;
+            this.position = pos;
+            this.velocity = vel;
             this.acceleration = new Vector (0,0);
-            this.targetVel = this.vel;
+            this.targetVel = new Vector (this.velocity.x, this.velocity.y);
             this.scaleFactor = scale_factor;
             this.speedFactor = speed_factor;
             this.color = color;
+            this.turnSteps = 0;
+            this.turnCount = 0;
+            this.turning = false;
+
+        }
+
+        checkBoundaries(){
 
         }
 
 
         getBearing (){
-            return Math.atan2(this.vel.y, this.vel.x) * 180 / Math.PI;
+            return Math.atan2(this.velocity.y, this.velocity.x) * 180 / Math.PI;
         }
 
         getScaleFactor (){
@@ -83,17 +90,31 @@
         }
 
         updateVelocity (){
-            this.velocity = Vector.add(this.velocity, this.acceleration);
+            this.velocity.add(this.acceleration);
             this.velocity.normalize();
         }
         updatePosition (){
-            this.velocity = Vector.add(this.position, this.velocity);
+            this.position.add(this.velocity);
+        }
+
+        setAcceleration (v1){
+            this.acceleration = v1;
         }
 
         resetAcceleration (){
             this.acceleration.x = 0;
             this.acceleration.y = 0;
         }
+
+        finishTurn (){
+            this.turnSteps = 0;
+            this.turnCount = 0;
+            this.resetAcceleration();
+            this.targetVel.setX(this.velocity.x);
+            this.targetVel.setY(this.velocity.y);
+            this.turning = false;
+        }
+
     }
 
 
@@ -102,6 +123,17 @@
         constructor(x, y) {
             this.x = x;
             this.y = y;
+        }
+
+        equals(v1){
+            if (this.x === v1.x && this.y === v1.y){
+                return true;
+            }
+            return false;
+        }
+
+        round(v1){
+
         }
 
         normalize (){
@@ -118,13 +150,18 @@
 
         }
 
-        scaleBy (v1, val){
-            return new Vector(v1.x * val, v1.y * val);
+        scaleBy (val){
+             this.x *= val;
+             this.y *= val;
 
         }
 
-        distanceSquared (v1, v2){
-            return ((v1.x - v2.x) * (v1.x - v2.x) + (v1.y - v2.y) * (v1.y - v2.y));
+        setX (val){
+            this.x = val;
+        }
+
+        setY (val){
+            this.y = val;
         }
 
         getX (){
@@ -135,16 +172,23 @@
             return this.y
         }
 
-        distance (v1, v2) {
+
+
+        add (v1) {
+            this.x += v1.x;
+            this.y += v1.y;
+        }
+
+        static difference (v1, v2){
+            return new Vector (v1.x - v2.x, v1.y - v2.y);
+        }
+
+        static distanceSquared (v1, v2){
+            return ((v1.x - v2.x) * (v1.x - v2.x) + (v1.y - v2.y) * (v1.y - v2.y));
+        }
+
+        static distance (v1, v2) {
             return Math.sqrt(((v1.x - v2.x) * (v1.x - v2.x) + (v1.y - v2.y) * (v1.y - v2.y)));
-        }
-
-        add (v1, v2) {
-            return new Vector((v1.x + v2.x), v1.y + v2.y);
-        }
-
-        subtract (v1, v2) {
-            return new Vector((v1.x - v2.x), v1.y - v2.y);
         }
 
 
@@ -172,94 +216,94 @@
         delimiters: ["<%","%>"],
 
         methods: {
-            transformString: function(agent) {
-                return "translate(" + agent.pos.getX() + "," + agent.pos.getY() + ")rotate(" + agent.getBearing() + ")scale(" + agent.getScaleFactor() + ")";
+            transformString: function (agent) {
+                return "translate(" + agent.position.getX() + "," + agent.position.getY() + ")rotate(" + agent.getBearing() + ")scale(" + agent.getScaleFactor() + ")";
             },
 
-            pathString: function(agent){
+            pathString: function (agent) {
                 return "m20,0l-20,10l-10,-10l10,-10l20,10";
             },
 
-            createAgents: function(){
+            createAgents: function () {
                 for (let i = 0; i < this.initial_population; i++) {
                     let id = i;
                     let position = new Vector(Math.floor(Math.random() * 350 + 25), Math.floor(Math.random() * 350 + 25));
-                    let velocity = new Vector ((Math.random() * 2 - 1), (Math.random() * 2 - 1));
+                    let velocity = new Vector((Math.random() * 2 - 1), (Math.random() * 2 - 1));
                     velocity.normalize();
                     let color = "plum";
-                    let agent = new Agent(id, position, velocity, .4, 2, color);
+                    let agent = new Agent(id, position, velocity, .4, .5, color);
                     this.agents.push(agent);
                 }
             },
 
-            updateAgents: function() {
+            updateAgents: function () {
 
                 let agent = {};
-                let difference = new Vector (0,0);
-                let newVelocity = new Vector (0,0);
 
                 if (this.animating) {
                     window.requestAnimationFrame(this.updateAgents);
                     this.tick++;
                 }
 
-                for (let i = 0; i < this.agents.length; i++){
+                for (let i = 0; i < this.agents.length; i++) {
                     agent = this.agents[i];
-                    if (agent.targetVel != agent.vel){
-                        agent.updateVelocity;
-                        agent.updatePosition;
+                    let acceleration = new Vector;
+                    if (agent.turning){
+                        agent.updateVelocity();
+                        agent.updatePosition();
+                        agent.turnCount++;
+                        if (agent.turnCount === agent.turnSteps){
+                            agent.finishTurn();
+                        }
                         continue;
                     }
                     else{
-                        agent.resetAcceleration();
+                        if (agent.position.x < 20 && agent.velocity.x < 0){
+                            agent.targetVel.x = -1 * agent.velocity.x;
+                            agent.turning = true;
+                            agent.turnSteps = 10;
+                            acceleration = Vector.difference(agent.targetVel, agent.velocity);
+                            acceleration.scaleBy(0.1);
+                            agent.setAcceleration(acceleration);
+                        }
 
-                    //    First check if it is at a wall.
-                        if (agent.pos.x + agent.vel.x <= 20 || agent.pos.x + agent.vel.x >= 380) {
-                            agent.targetVel.x = -1 * agent.vel.x;
-                            agent.setAcceleration;
+                        else if (agent.position.x > 380 && agent.velocity.x > 0){
+                            agent.targetVel.x = -1 * agent.velocity.x;
+                            agent.turning = true;
+                            agent.turnSteps = 10;
+                            acceleration = Vector.difference(agent.targetVel, agent.velocity);
+                            acceleration.scaleBy(0.1);
+                            agent.setAcceleration(acceleration);
+                        }
+                        else if (agent.position.y < 20 && agent.velocity.y < 0){
+                            agent.targetVel.y = -1 * agent.velocity.y;
+                            agent.turning = true;
+                            agent.turnSteps = 10;
+                            acceleration = Vector.difference(agent.targetVel, agent.velocity);
+                            acceleration.scaleBy(0.1);
+                            agent.setAcceleration(acceleration);
+                        }
+                        else if (agent.position.y > 380 && agent.velocity.y > 0){
+                            agent.targetVel.y = -1 * agent.velocity.y;
+                            agent.turning = true;
+                            agent.turnSteps = 10;
+                            acceleration = Vector.difference(agent.targetVel, agent.velocity);
+                            acceleration.scaleBy(0.1);
+                            agent.setAcceleration(acceleration);
+                        }
 
 
-                        else if (agent.pos.y + agent.vel.y <= 20 || agent.pos.x + agent.vel.y >= 380) {
-                            agent.targetVel.y = -1 * agent.vel.y;
-                            agent.setAcceleration;
 
+                        else {
+                            agent.updatePosition();
 
                         }
                     }
 
+
+
+
                 }
-
-
-
-
-
-                // let agent = {};
-                // let neighbors = [];
-                // let acceleration = [];
-
-                // for (let j = 0; j < this.population; j++) {
-                // agent = this.agents[j];
-                // neighbors = [];
-                //
-                // if (agent.vel != agent.targetVel){
-                //     acceleration = math.subtract(agent.targetVel, agent.vel);
-                //     acceleration = math. multiply(acceleration, 0.1);
-                // }
-                //
-                // agent.vel = math.add(agent.vel, acceleration);
-                // agent.vel = normalize(agent.vel);
-                // continue;
-                //
-                // if (agent.pos[0] >= 380 || agent.pos[0] <= 0) {
-                //     agent.targetVel = [-1 * agent.vel[0], agent.vel[1]];
-                // }
-                //
-                // if (agent.pos[1] >= 380 || agent.pos[1] <= 0) {
-                //     agent.targetVel = [agent.vel[0], -1 * agent.vel[1]];
-                // }
-
-
-                // agent.pos = math.add(agent.pos, math.multiply(agent.vel, agent.speed_factor));
 
             },
 
@@ -401,6 +445,34 @@
         //     // newVelocity = math.add(newVelocity, cohesionAcceleration);
         //
         //     this.vel = newVelocity;
+
+    // let agent = {};
+                // let neighbors = [];
+                // let acceleration = [];
+
+                // for (let j = 0; j < this.population; j++) {
+                // agent = this.agents[j];
+                // neighbors = [];
+                //
+                // if (agent.vel != agent.targetVel){
+                //     acceleration = math.subtract(agent.targetVel, agent.vel);
+                //     acceleration = math. multiply(acceleration, 0.1);
+                // }
+                //
+                // agent.vel = math.add(agent.vel, acceleration);
+                // agent.vel = normalize(agent.vel);
+                // continue;
+                //
+                // if (agent.pos[0] >= 380 || agent.pos[0] <= 0) {
+                //     agent.targetVel = [-1 * agent.vel[0], agent.vel[1]];
+                // }
+                //
+                // if (agent.pos[1] >= 380 || agent.pos[1] <= 0) {
+                //     agent.targetVel = [agent.vel[0], -1 * agent.vel[1]];
+                // }
+
+
+                // agent.pos = math.add(agent.pos, math.multiply(agent.vel, agent.speed_factor));
 
 </script>
 </body>
