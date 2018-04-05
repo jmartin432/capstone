@@ -70,15 +70,40 @@
             this.scaleFactor = scale_factor;
             this.speedFactor = speed_factor;
             this.color = color;
-            this.turnSteps = 0;
-            this.turnCount = 0;
-            this.turning = false;
+            this.neighbors = [];
 
         }
 
-        checkBoundaries(){
+        outOfBounds(){
+            if (this.position.x < 20 && this.velocity.x < 0) {
+                this.targetVel.x = -1 * this.velocity.x;
+                this.acceleration = Vector.difference(this.targetVel, this.velocity);
+                this.acceleration.scaleBy(0.1);
+                return true;
+            }
+
+            else if (this.position.x > 380 && this.velocity.x > 0) {
+                this.targetVel.x = -1 * this.velocity.x;
+                this.acceleration = Vector.difference(this.targetVel, this.velocity);
+                this.acceleration.scaleBy(0.1);
+                return true;
+            }
+            else if (this.position.y < 20 && this.velocity.y < 0) {
+                this.targetVel.y = -1 * this.velocity.y;
+                this.acceleration = Vector.difference(this.targetVel, this.velocity);
+                this.acceleration.scaleBy(0.1);
+                return true;
+            }
+            else if (this.position.y > 380 && this.velocity.y > 0) {
+                this.targetVel.y = -1 * this.velocity.y;
+                this.acceleration = Vector.difference(this.targetVel, this.velocity);
+                this.acceleration.scaleBy(0.1);
+                return true;
+            }
+            return false;
 
         }
+
 
 
         getBearing (){
@@ -104,15 +129,6 @@
         resetAcceleration (){
             this.acceleration.x = 0;
             this.acceleration.y = 0;
-        }
-
-        finishTurn (){
-            this.turnSteps = 0;
-            this.turnCount = 0;
-            this.resetAcceleration();
-            this.targetVel.setX(this.velocity.x);
-            this.targetVel.setY(this.velocity.y);
-            this.turning = false;
         }
 
     }
@@ -239,6 +255,7 @@
             updateAgents: function () {
 
                 let agent = {};
+                let acceleration = new Vector;
 
                 if (this.animating) {
                     window.requestAnimationFrame(this.updateAgents);
@@ -247,57 +264,25 @@
 
                 for (let i = 0; i < this.agents.length; i++) {
                     agent = this.agents[i];
-                    let acceleration = new Vector;
-                    if (agent.turning){
-                        agent.updateVelocity();
-                        agent.updatePosition();
-                        agent.turnCount++;
-                        if (agent.turnCount === agent.turnSteps){
-                            agent.finishTurn();
-                        }
-                        continue;
-                    }
-                    else{
-                        if (agent.position.x < 20 && agent.velocity.x < 0){
-                            agent.targetVel.x = -1 * agent.velocity.x;
-                            agent.turning = true;
-                            agent.turnSteps = 10;
-                            acceleration = Vector.difference(agent.targetVel, agent.velocity);
-                            acceleration.scaleBy(0.1);
-                            agent.setAcceleration(acceleration);
-                        }
 
-                        else if (agent.position.x > 380 && agent.velocity.x > 0){
-                            agent.targetVel.x = -1 * agent.velocity.x;
-                            agent.turning = true;
-                            agent.turnSteps = 10;
-                            acceleration = Vector.difference(agent.targetVel, agent.velocity);
-                            acceleration.scaleBy(0.1);
-                            agent.setAcceleration(acceleration);
+                    if (agent.id % 10 === this.tick % 10){
+                        agent.resetAcceleration();
+                        if (agent.outOfBounds()){
+                            agent.updateVelocity();
+                            agent.updatePosition();
                         }
-                        else if (agent.position.y < 20 && agent.velocity.y < 0){
-                            agent.targetVel.y = -1 * agent.velocity.y;
-                            agent.turning = true;
-                            agent.turnSteps = 10;
-                            acceleration = Vector.difference(agent.targetVel, agent.velocity);
-                            acceleration.scaleBy(0.1);
-                            agent.setAcceleration(acceleration);
-                        }
-                        else if (agent.position.y > 380 && agent.velocity.y > 0){
-                            agent.targetVel.y = -1 * agent.velocity.y;
-                            agent.turning = true;
-                            agent.turnSteps = 10;
-                            acceleration = Vector.difference(agent.targetVel, agent.velocity);
-                            acceleration.scaleBy(0.1);
-                            agent.setAcceleration(acceleration);
-                        }
-
-
-
                         else {
+
+                            agent.updateVelocity();
                             agent.updatePosition();
 
                         }
+                        // Get a new target velocity every 10th frame
+
+                    }
+                    else{
+                        agent.updateVelocity();
+                        agent.updatePosition();
                     }
 
 
