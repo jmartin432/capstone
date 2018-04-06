@@ -35,8 +35,8 @@
                         <input type="range" min="5" max="100" v-model="initial_population"><br>
                         <span>Alignment Radius: <% alignment_radius %></span><br>
                         <input type="range" min="30" max="100" v-model="alignment_radius"><br>
-                        <span>Separation Radius: <% separation_radius %></span><br>
-                        <input type="range" min="1" max="10" v-model="separation_radius"><br>
+                        <span>Separation Radius: <% separationRadius %></span><br>
+                        <input type="range" min="1" max="10" v-model="separationRadius"><br>
                         <span>Separation Weight: <% separation_weight %></span><br>
                         <input type="range" min=".01" max="5" step=".1" v-model="separation_weight"><br>
                         <span>Cohesion Radius: <% cohesion_radius %></span><br>
@@ -127,7 +127,7 @@
                 if (this === app.agents[i]){
                     continue;
                 }
-                if (Vector.distanceSquared(app.agents[i], this) < (app.alignment_radius * app.alignment_radius)) {
+                if (Vector.distanceSquared(app.agents[i].position, this.position) < (app.alignment_radius * app.alignment_radius)) {
                     this.neighbors.push(app.agents[i]);
 
                 }
@@ -135,9 +135,11 @@
         }
 
         getRandomVelocity(){
-            this.targetVel.reset();
-            this.targetVel.x = this.velocity.x + (Math.random() * 1 - .5);
-            this.targetVel.y = this.velocity.y + (Math.random() * 1 - .5);
+            this.targetVel.x = this.velocity.x + (Math.random() - .5);
+            this.targetVel.y = this.velocity.y + (Math.random() - .5);
+        }
+
+        updateAcceleration(){
             this.acceleration = Vector.difference(this.targetVel, this.velocity);
             this.acceleration.scaleBy(0.1);
         }
@@ -249,8 +251,44 @@
         static distance (v1, v2) {
             return Math.sqrt(((v1.x - v2.x) * (v1.x - v2.x) + (v1.y - v2.y) * (v1.y - v2.y)));
         }
+    }
 
 
+    function getAvoidanceVelocity(agent){
+        let difference = new Vector (0,0);
+        let velocityToNeighbor = new Vector (0,0);
+        let velocitySum = new Vector (0,0);
+        for (let i = 0; i < agent.neighbors.length; i++){
+            if (Vector.distanceSquared(agent.position, agent.neighbors[i].position) < app.separationRadius) {
+                velocityToNeighbor = Vector.difference(agent.neighbors[i].position, agent.position);
+                velocityToNeighbor.scaleBy(-1);
+                velocitySum.add(velocityToNeighbor);
+            }
+        }
+        velocitySum.normalize();
+        return velocitySum;
+    }
+
+    function getAlignmentVelocity(agent){
+        let velocitySum = new Vector (0,0);
+        for (let i = 0; i < agent.neighbors.length; i++){
+            velocitySum.add(agent.neighbors[i].velocity);
+        }
+        velocitySum.scaleBy(1 / agent.neighbors.length);
+        velocitySum.normalize();
+        return velocitySum;
+    }
+
+    function getCohesionVelocity(agent){
+        let positionSum = new Vector (0,0);
+
+        for (let i = 0; i < agent.neighbors.length; i++){
+            positionSum.add(agent.neighbors[i].position);
+        }
+        positionSum.scaleBy(1 / agent.neighbors.length);
+        let vectorToCenter = Vector.difference(positionSum, agent.position);
+        vectorToCenter.normalize();
+        return vectorToCenter;
     }
 
 
@@ -265,7 +303,7 @@
             population: 0,
             alignment_radius: 50,
             separation_weight: .1,
-            separation_radius: 20,
+            separationRadius: 20,
             cohesion_weight: .1,
             cohesion_radius: 50,
             tick: 0,
@@ -298,14 +336,10 @@
             updateAgents: function () {
 
                 let agent = {};
-                let acceleration = new Vector;
-                let avoidanceSum = new Vector (0, 0);
                 let avoidanceVelocity = new Vector (0, 0);
-                let alignmentSum = new Vector (0, 0);
                 let alignmentVelocity = new Vector (0, 0);
-                let cohesionSum = new Vector (0, 0);
-                let centerOfMass = new Vector (0, 0);
-                let centerOfMassVelocity = new Vector (0, 0);
+                let cohesionVelocity = new Vector (0, 0);
+
 
 
                 if (this.animating) {
@@ -317,58 +351,36 @@
                     agent = this.agents[i];
 
                     if (agent.id % 10 === this.tick % 10){
+                        agent.neighbors = [];
                         agent.targetVel.reset();
                         agent.acceleration.reset();
                         if (agent.outOfBounds()){
                             agent.updateOutOfBoundsVelocity();
+                            agent.updateAcceleration();
                         }
                         else {
                             agent.findNeighbors();
                             if (agent.neighbors.length > 0){
-                                // agent.getFlockVelocity()
-                                continue;
+                                avoidanceVelocity = getAvoidanceVelocity(agent);
+                                alignmentVelocity = getAlignmentVelocity(agent);
+                                cohesionVelocity = getCohesionVelocity(agent);
+                                agent.targetVel.add(avoidanceVelocity);
+                                agent.targetVel.add(alignmentVelocity);
+                                agent.targetVel.add(cohesionVelocity);
+                                agent.targetVel.normalize();
+                                agent.updateAcceleration();
                             }
                             else {
                                 agent.getRandomVelocity();
+                                agent.updateAcceleration();
                             }
-
-
-
-
-
-                            // for (let i = 0; i < this.agents.length; i++) {
-                            //     if (Vector.distanceSquared(this.agents[i], agent) < (this.alignment_radius * this.alignment_radius)) {
-                            //         agent.neighbors.push(this.agents[i]);
-                            //         alignmentSum.add(this.agents[i].velocity);
-                            //         cohesionSum.add(this.agents[i].position);
-                            //         avoidanceSum.add(Vector.difference(agent, this.agents[i]));
-                            //     }
-                            // }
-                            // if (agent.neighbors.length > 0) {
-                            //     alignmentVelocity = alignmentSum.scaleBy(1 / this.agents.length);
-                            //     avoidanceVelocity = avoidanceSum.scaleBy(1 / this.agents.length);
-                            //     centerOfMass = cohesionSum.scaleBy(1 / this.agents.length);
-                            //     centerOfMassVelocity = Vector.difference(centerOfMass, agent.position);
-                            //
-                            //     agent.targetVel = avoidanceVelocity.add(centerOfMassVelocity).add(alignmentSum);
-                            //     agent.acceleration = Vector.difference(agent.targetVel, agent.velocity);
-                            //     agent.acceleration.scaleBy(0.1);
-
-
-                            // }
-                            // agent.updateVelocity();
-                            // agent.updatePosition();
-
                         }
-
-
                     }
 
                     agent.updateVelocity();
                     agent.updatePosition();
 
                 }
-
             },
 
             play: function(){
@@ -405,138 +417,6 @@
 
     app.createAgents();
 
-// for (let i = 0; i < this.population; i++) {
-                        //     if (i === j) {
-                        //         continue;
-                        //     }
-                        //     if (math.distance(agent.pos, this.agents[i].pos) <= this.alignment_radius) {
-                        //         neighbors.push(this.agents[i]);
-                        //     }
-                        //
-                        // }
-
-
-                        //if the agent has neighbors then find the new velocity vector
-                        // if (neighbors.length > 0) {
-                        //     agent.getNewVelocity(neighbors);
-                        //
-                        //     // agent.vel = math.add(agent.vel, agent.getSeparationAcc(separation_neighbors, this.separation_weight));
-                        //
-                        //     // agent.vel = math.add(agent.vel, agent.getCohesionAcc(cohesion_neighbors, this.cohesion_weight));
-                        //
-                        // }
-                        // velocity_magnitude = math.distance(agent.vel, [0, 0]);
-                        // agent.vel = math.divide(agent.vel, velocity_magnitude);
-                        //
-                        // if (agent.pos[0] + agent.vel[0] <= 20 || agent.pos[0] + agent.vel[0] >= 380) {
-                        //     agent.vel[0] *= -1;
-                        // }
-                        // if (agent.pos[1] + agent.vel[1] <= 20 || agent.pos[1] + agent.vel[1] >= 380) {
-                        //     agent.vel[1] *= -1;
-                        // }
-                        //
-                        // agent.bearing = Math.atan2(agent.vel[1], agent.vel[0]) * 180 / Math.PI;
-                        // agent.pos = math.add(agent.pos, math.multiply(agent.vel, agent.speed_factor));
-
-                    // }
-
-                    // velocity_magnitude = math.distance(agent.vel, [0, 0]);
-                    // agent.vel = math.divide(agent.vel, velocity_magnitude);
-                    //
-                    //
-                    //
-
-
-
-    <!--getCohesionAcc (neighbors, weight){-->
-        //     let position_sum = [0, 0], count = 0, group_center = [], difference = [0, 0];
-        //     if (neighbors.length === 0){
-        //         return [0, 0];
-        //     }
-        //     else{
-        //         for(let i = 0; i < neighbors.length; i++){
-        //             position_sum = math.add(position_sum, neighbors[i].pos);
-        //             count++;
-        //         }
-        //         group_center = math.divide(position_sum, count);
-        //         difference = math.subtract(group_center, this.pos);
-        //         return math.multiply(difference, weight);
-        //     }
-        //
-        // }
-        //
-        // getSeparationAcc (neighbors, weight) {
-        //     let acceleration = [0, 0], difference = [0, 0];
-        //     if (neighbors.length === 0) {
-        //         return acceleration;
-        //     }
-        //     else {
-        //         for (let i = 0; i < neighbors.length; i++) {
-        //             difference = math.subtract(this.pos, neighbors[i].pos);
-        //             acceleration = math.add(acceleration, difference);
-        //         }
-        //     }
-        //     return math.multiply(acceleration, weight);
-        // }
-
-// getNewVelocity (neighbors){
-        //     let velocity_sum = this.vel;
-        //     let position_sum = [0, 0];
-        //     let count = 1;
-        //     let vectorToCOM = [0, 0];
-        //     let newVelocity = [];
-        //     let separationAcceleration = [0, 0];
-        //     let difference = [0, 0];
-        //     let centerOfMass = [0, 0];
-        //     let cohesionAcceleration = [0, 0];
-        //
-        //
-        //     for(let i = 0; i < neighbors.length; i++){
-        //         velocity_sum = math.add(velocity_sum, neighbors[i].vel);
-        //         position_sum = math.add(position_sum, neighbors[i].pos);
-        //         count++;
-        //         if (math.distance(this.pos, neighbors[i].pos) <= app.separation_radius){
-        //             difference = math.subtract(this.pos, neighbors[i].pos);
-        //             separationAcceleration = math.add(separationAcceleration, difference);
-        //         }
-        //     }
-        //     separationAcceleration = math.multiply(separationAcceleration, app.separation_weight);
-        //     newVelocity = math.divide(velocity_sum, count);
-        //     centerOfMass = math.divide(position_sum, count-1);
-        //     vectorToCOM = math.subtract(centerOfMass, this.pos);
-        //     // cohesionAcceleration = math.multiply(vectorToCOM, app.cohesion_weight);
-        //     newVelocity = math.add(newVelocity, separationAcceleration);
-        //     // newVelocity = math.add(newVelocity, cohesionAcceleration);
-        //
-        //     this.vel = newVelocity;
-
-    // let agent = {};
-                // let neighbors = [];
-                // let acceleration = [];
-
-                // for (let j = 0; j < this.population; j++) {
-                // agent = this.agents[j];
-                // neighbors = [];
-                //
-                // if (agent.vel != agent.targetVel){
-                //     acceleration = math.subtract(agent.targetVel, agent.vel);
-                //     acceleration = math. multiply(acceleration, 0.1);
-                // }
-                //
-                // agent.vel = math.add(agent.vel, acceleration);
-                // agent.vel = normalize(agent.vel);
-                // continue;
-                //
-                // if (agent.pos[0] >= 380 || agent.pos[0] <= 0) {
-                //     agent.targetVel = [-1 * agent.vel[0], agent.vel[1]];
-                // }
-                //
-                // if (agent.pos[1] >= 380 || agent.pos[1] <= 0) {
-                //     agent.targetVel = [agent.vel[0], -1 * agent.vel[1]];
-                // }
-
-
-                // agent.pos = math.add(agent.pos, math.multiply(agent.vel, agent.speed_factor));
 
 </script>
 </body>
