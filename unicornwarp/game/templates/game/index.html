@@ -59,6 +59,17 @@
 
     let animationId = "";
 
+    function getAverageVelocity(agentList){
+        let velocitySum = new Vector (0,0);
+        for (let i = 0; i < agentList.length; i++){
+            velocitySum.x += agentList[i].velocity.x;
+            velocitySum.y += agentList[i].velocity.y
+        }
+        velocitySum.scaleBy(1 / agentList.length);
+        // velocitySum.normalize();
+        return velocitySum;
+    }
+
     // Agent Class
     class Agent {
         constructor(id, pos, vel, scale_factor, speed_factor, color) {
@@ -76,32 +87,59 @@
 
         outOfBounds(){
             if (this.position.x < 20 && this.velocity.x < 0) {
-                this.targetVel.x = -1 * this.velocity.x;
-                this.acceleration = Vector.difference(this.targetVel, this.velocity);
-                this.acceleration.scaleBy(0.1);
                 return true;
             }
 
             else if (this.position.x > 380 && this.velocity.x > 0) {
-                this.targetVel.x = -1 * this.velocity.x;
-                this.acceleration = Vector.difference(this.targetVel, this.velocity);
-                this.acceleration.scaleBy(0.1);
                 return true;
             }
             else if (this.position.y < 20 && this.velocity.y < 0) {
-                this.targetVel.y = -1 * this.velocity.y;
-                this.acceleration = Vector.difference(this.targetVel, this.velocity);
-                this.acceleration.scaleBy(0.1);
                 return true;
             }
             else if (this.position.y > 380 && this.velocity.y > 0) {
-                this.targetVel.y = -1 * this.velocity.y;
-                this.acceleration = Vector.difference(this.targetVel, this.velocity);
-                this.acceleration.scaleBy(0.1);
                 return true;
             }
             return false;
+        }
 
+        updateOutOfBoundsVelocity(){
+            if (this.position.x < 20 && this.velocity.x < 0) {
+                this.targetVel.x = -1 * this.velocity.x;
+            }
+
+            else if (this.position.x > 380 && this.velocity.x > 0) {
+                this.targetVel.x = -1 * this.velocity.x;
+            }
+            else if (this.position.y < 20 && this.velocity.y < 0) {
+                this.targetVel.y = -1 * this.velocity.y;
+            }
+            else if (this.position.y > 380 && this.velocity.y > 0) {
+                this.targetVel.y = -1 * this.velocity.y;
+            }
+            this.acceleration = Vector.difference(this.targetVel, this.velocity);
+            this.acceleration.scaleBy(0.1);
+        }
+
+
+        findNeighbors(){
+            this.neighbors = [];
+            for (let i = 0; i < app.agents.length; i++) {
+                if (this === app.agents[i]){
+                    continue;
+                }
+                if (Vector.distanceSquared(app.agents[i], this) < (app.alignment_radius * app.alignment_radius)) {
+                    this.neighbors.push(app.agents[i]);
+
+                }
+            }
+        }
+
+        getRandomVelocity(){
+            this.targetVel.reset();
+            this.targetVel.x = this.velocity.x + (Math.random() * 1 - .5);
+            this.targetVel.y = this.velocity.y + (Math.random() * 1 - .5);
+            this.acceleration = Vector.difference(this.targetVel, this.velocity);
+            this.acceleration.scaleBy(0.1);
         }
 
 
@@ -139,6 +177,11 @@
         constructor(x, y) {
             this.x = x;
             this.y = y;
+        }
+
+        reset () {
+            this.x = 0;
+            this.y = 0;
         }
 
         equals(v1){
@@ -220,7 +263,7 @@
             animation_rate: 1,
             initial_population: 10,
             population: 0,
-            alignment_radius: 100,
+            alignment_radius: 50,
             separation_weight: .1,
             separation_radius: 20,
             cohesion_weight: .1,
@@ -256,6 +299,14 @@
 
                 let agent = {};
                 let acceleration = new Vector;
+                let avoidanceSum = new Vector (0, 0);
+                let avoidanceVelocity = new Vector (0, 0);
+                let alignmentSum = new Vector (0, 0);
+                let alignmentVelocity = new Vector (0, 0);
+                let cohesionSum = new Vector (0, 0);
+                let centerOfMass = new Vector (0, 0);
+                let centerOfMassVelocity = new Vector (0, 0);
+
 
                 if (this.animating) {
                     window.requestAnimationFrame(this.updateAgents);
@@ -266,27 +317,55 @@
                     agent = this.agents[i];
 
                     if (agent.id % 10 === this.tick % 10){
-                        agent.resetAcceleration();
+                        agent.targetVel.reset();
+                        agent.acceleration.reset();
                         if (agent.outOfBounds()){
-                            agent.updateVelocity();
-                            agent.updatePosition();
+                            agent.updateOutOfBoundsVelocity();
                         }
                         else {
+                            agent.findNeighbors();
+                            if (agent.neighbors.length > 0){
+                                // agent.getFlockVelocity()
+                                continue;
+                            }
+                            else {
+                                agent.getRandomVelocity();
+                            }
 
-                            agent.updateVelocity();
-                            agent.updatePosition();
+
+
+
+
+                            // for (let i = 0; i < this.agents.length; i++) {
+                            //     if (Vector.distanceSquared(this.agents[i], agent) < (this.alignment_radius * this.alignment_radius)) {
+                            //         agent.neighbors.push(this.agents[i]);
+                            //         alignmentSum.add(this.agents[i].velocity);
+                            //         cohesionSum.add(this.agents[i].position);
+                            //         avoidanceSum.add(Vector.difference(agent, this.agents[i]));
+                            //     }
+                            // }
+                            // if (agent.neighbors.length > 0) {
+                            //     alignmentVelocity = alignmentSum.scaleBy(1 / this.agents.length);
+                            //     avoidanceVelocity = avoidanceSum.scaleBy(1 / this.agents.length);
+                            //     centerOfMass = cohesionSum.scaleBy(1 / this.agents.length);
+                            //     centerOfMassVelocity = Vector.difference(centerOfMass, agent.position);
+                            //
+                            //     agent.targetVel = avoidanceVelocity.add(centerOfMassVelocity).add(alignmentSum);
+                            //     agent.acceleration = Vector.difference(agent.targetVel, agent.velocity);
+                            //     agent.acceleration.scaleBy(0.1);
+
+
+                            // }
+                            // agent.updateVelocity();
+                            // agent.updatePosition();
 
                         }
-                        // Get a new target velocity every 10th frame
+
 
                     }
-                    else{
-                        agent.updateVelocity();
-                        agent.updatePosition();
-                    }
 
-
-
+                    agent.updateVelocity();
+                    agent.updatePosition();
 
                 }
 
