@@ -31,19 +31,21 @@
                         <button v-on:click="play" :disabled=disablePlay>Play</button>
                         <button v-on:click="pause" :disabled=disablePause>Pause</button>
                         <button v-on:click="reset">Reset</button><br>
-                        <span>Initial Population: <% initial_population %></span><br>
-                        <input type="range" min="5" max="100" v-model="initial_population"><br>
-                        <span>Alignment Radius: <% alignment_radius %></span><br>
-                        <input type="range" min="30" max="100" v-model="alignment_radius"><br>
-                        <span>Separation Radius: <% separationRadius %></span><br>
-                        <input type="range" min="1" max="10" v-model="separationRadius"><br>
-                        <span>Separation Weight: <% separation_weight %></span><br>
-                        <input type="range" min=".01" max="5" step=".1" v-model="separation_weight"><br>
-                        <span>Cohesion Radius: <% cohesion_radius %></span><br>
-                        <input type="range" min="5" max="100" v-model="cohesion_radius"><br>
-                        <span>Cohesion Weight: <% cohesion_weight %></span><br>
-                        <input type="range" min=".01" max="5" step=".1" v-model="cohesion_weight"><br>
-                        <span>Current Population: <% agents.length %></span><br>
+                        <span>Initial Population: <% initialPreyPop %></span><br>
+                        <input type="range" min="1" max="100" v-model="initialPreyPop"><br>
+                        <span>Alignment Radius: <% alignmentRadius %></span><br>
+                        <input type="range" min="1" max="100" v-model="alignmentRadius"><br>
+                        <span>Alignment Weight: <% alignmentWeight %></span><br>
+                        <input type="range" min=".1" max="1" step=".1" v-model="alignmentWeight"><br>
+                        <span>Avoidance Radius: <% avoidanceRadius %></span><br>
+                        <input type="range" min="1" max="100" v-model="avoidanceRadius"><br>
+                        <span>Avoidance Weight: <% avoidanceWeight %></span><br>
+                        <input type="range" min=".1" max="1" step=".1" v-model="avoidanceWeight"><br>
+                        <span>Cohesion Radius: <% cohesionRadius %></span><br>
+                        <input type="range" min="1" max="100" v-model="cohesionRadius"><br>
+                        <span>Cohesion Weight: <% cohesionWeight %></span><br>
+                        <input type="range" min=".1" max="1" step=".1" v-model="cohesionWeight"><br>
+                        <span>Current Prey Population: <% agents.length %></span><br>
                         <span>Current Tick: <% tick %></span><br>
                     </div>
                 </td>
@@ -127,7 +129,7 @@
                 if (this === app.agents[i]){
                     continue;
                 }
-                if (Vector.distanceSquared(app.agents[i].position, this.position) < (app.alignment_radius * app.alignment_radius)) {
+                if (Vector.distanceSquared(app.agents[i].position, this.position) < (app.alignmentRadius * app.alignmentRadius)) {
                     this.neighbors.push(app.agents[i]);
 
                 }
@@ -259,7 +261,7 @@
         let velocityToNeighbor = new Vector (0,0);
         let velocitySum = new Vector (0,0);
         for (let i = 0; i < agent.neighbors.length; i++){
-            if (Vector.distanceSquared(agent.position, agent.neighbors[i].position) < app.separationRadius) {
+            if (Vector.distanceSquared(agent.position, agent.neighbors[i].position) < app.avoidanceRadius) {
                 velocityToNeighbor = Vector.difference(agent.neighbors[i].position, agent.position);
                 velocityToNeighbor.scaleBy(-1);
                 velocitySum.add(velocityToNeighbor);
@@ -298,14 +300,19 @@
         data: {
             agents: [],
             animating: false,
-            animation_rate: 1,
-            initial_population: 10,
+            cohesionOn: true,
+            avoidanceOn: true,
+            alignmentOn: true,
+            agentSpeed: 1,
+            animationRate: 1,
+            initialPreyPop: 50,
             population: 0,
-            alignment_radius: 50,
-            separation_weight: .1,
-            separationRadius: 20,
-            cohesion_weight: .1,
-            cohesion_radius: 50,
+            alignmentRadius: 50,
+            alignmentWeight: 1,
+            avoidanceWeight: 1,
+            avoidanceRadius: 20,
+            cohesionWeight: 1,
+            cohesionRadius: 50,
             tick: 0,
             updateRate: 10,
         },
@@ -322,13 +329,13 @@
             },
 
             createAgents: function () {
-                for (let i = 0; i < this.initial_population; i++) {
+                for (let i = 0; i < this.initialPreyPop; i++) {
                     let id = i;
                     let position = new Vector(Math.floor(Math.random() * 350 + 25), Math.floor(Math.random() * 350 + 25));
                     let velocity = new Vector((Math.random() * 2 - 1), (Math.random() * 2 - 1));
                     velocity.normalize();
                     let color = "plum";
-                    let agent = new Agent(id, position, velocity, .4, .5, color);
+                    let agent = new Agent(id, position, velocity, .4, 2, color);
                     this.agents.push(agent);
                 }
             },
@@ -362,8 +369,11 @@
                             agent.findNeighbors();
                             if (agent.neighbors.length > 0){
                                 avoidanceVelocity = getAvoidanceVelocity(agent);
+                                avoidanceVelocity.scaleBy(this.avoidanceWeight);
                                 alignmentVelocity = getAlignmentVelocity(agent);
+                                alignmentVelocity.scaleBy(this.alignmentWeight);
                                 cohesionVelocity = getCohesionVelocity(agent);
+                                cohesionVelocity.scaleBy(this.cohesionWeight);
                                 agent.targetVel.add(avoidanceVelocity);
                                 agent.targetVel.add(alignmentVelocity);
                                 agent.targetVel.add(cohesionVelocity);
@@ -383,7 +393,7 @@
                 }
             },
 
-            play: function(){
+             play: function(){
                 this.animating = true;
                 animationId = window.requestAnimationFrame(this.updateAgents);
             },
