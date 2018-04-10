@@ -20,8 +20,11 @@
                 <td>
                     <div id="output">
                         <svg id="main_svg" width="400" height="400">
-                            <g class="agent" v-for="agent in agents" v-bind:transform="transformString(agent)" v-bind:id="agent.id">
-                                <path v-bind:d="pathString(agent)" stroke="black" fill="plum" stroke_width="1"></path>
+                            <g class="prey" v-for="prey in preys" v-bind:transform="transformString(prey)" v-bind:id="prey.id">
+                                <path v-bind:d="pathString(prey)" stroke="black" fill="plum" stroke_width="1"></path>
+                            </g>
+                            <g class="predator" v-for="predator in predators" v-bind:transform="transformString(predator)" v-bind:id="predator.id">
+                                <path v-bind:d="pathString(predator)" stroke="black" fill="blue" stroke_width="1"></path>
                             </g>
                         </svg>
                     </div>
@@ -31,8 +34,10 @@
                         <button v-on:click="play" :disabled=disablePlay>Play</button>
                         <button v-on:click="pause" :disabled=disablePause>Pause</button>
                         <button v-on:click="reset">Reset</button><br>
-                        <span>Initial Population: <% initialPreyPop %></span><br>
+                        <span>Initial Prey Population: <% initialPreyPop %></span><br>
                         <input type="range" min="1" max="100" v-model="initialPreyPop"><br>
+                        <span>Initial Predator Population: <% initialPredPop %></span><br>
+                        <input type="range" min="1" max="10" v-model="initialPredPop"><br>
                         <span>Alignment Radius: <% alignmentRadius %></span><br>
                         <input type="range" min="1" max="100" v-model="alignmentRadius"><br>
                         <span>Alignment Weight: <% alignmentWeight %></span><br>
@@ -45,7 +50,7 @@
                         <input type="range" min="1" max="100" v-model="cohesionRadius"><br>
                         <span>Cohesion Weight: <% cohesionWeight %></span><br>
                         <input type="range" min=".1" max="1" step=".1" v-model="cohesionWeight"><br>
-                        <span>Current Prey Population: <% agents.length %></span><br>
+                        <span>Current Prey Population: <% preys.length %></span><br>
                         <span>Current Tick: <% tick %></span><br>
                     </div>
                 </td>
@@ -123,14 +128,26 @@
         }
 
 
-        findNeighbors(){
+        findPredatorNeighbors(){
             this.neighbors = [];
-            for (let i = 0; i < app.agents.length; i++) {
-                if (this === app.agents[i]){
+            for (let i = 0; i < app.predators.length; i++) {
+                if (this === app.predators[i]){
                     continue;
                 }
-                if (Vector.distanceSquared(app.agents[i].position, this.position) < (app.alignmentRadius * app.alignmentRadius)) {
-                    this.neighbors.push(app.agents[i]);
+                if (Vector.distanceSquared(app.predators[i].position, this.position) < (app.alignmentRadius * app.alignmentRadius)) {
+                    this.neighbors.push(app.predators[i]);
+
+                }
+            }
+        }
+        findPreyNeighbors(){
+            this.neighbors = [];
+            for (let i = 0; i < app.preys.length; i++) {
+                if (this === app.preys[i]){
+                    continue;
+                }
+                if (Vector.distanceSquared(app.preys[i].position, this.position) < (app.alignmentRadius * app.alignmentRadius)) {
+                    this.neighbors.push(app.preys[i]);
 
                 }
             }
@@ -261,7 +278,7 @@
         let velocityToNeighbor = new Vector (0,0);
         let velocitySum = new Vector (0,0);
         for (let i = 0; i < agent.neighbors.length; i++){
-            if (Vector.distanceSquared(agent.position, agent.neighbors[i].position) < app.avoidanceRadius) {
+            if (Vector.distanceSquared(agent.position, agent.neighbors[i].position) < app.avoidanceRadius * app.avoidanceRadius) {
                 velocityToNeighbor = Vector.difference(agent.neighbors[i].position, agent.position);
                 velocityToNeighbor.scaleBy(-1);
                 velocitySum.add(velocityToNeighbor);
@@ -298,7 +315,8 @@
     var app = new Vue({
         el: '#app',
         data: {
-            agents: [],
+            predators: [],
+            preys: [],
             animating: false,
             cohesionOn: true,
             avoidanceOn: true,
@@ -306,6 +324,7 @@
             agentSpeed: 1,
             animationRate: 1,
             initialPreyPop: 50,
+            initialPredPop: 4,
             population: 0,
             alignmentRadius: 50,
             alignmentWeight: 1,
@@ -328,21 +347,34 @@
                 return "m20,0l-20,10l-10,-10l10,-10l20,10";
             },
 
+            colorString: function (agent) {
+                return agent.color;
+            },
+
             createAgents: function () {
+                for (let i = 0; i < this.initialPredPop; i++) {
+                    let id = i;
+                    let position = new Vector(Math.floor(Math.random() * 350 + 25), Math.floor(Math.random() * 350 + 25));
+                    let velocity = new Vector((Math.random() * 2 - 1), (Math.random() * 2 - 1));
+                    velocity.normalize();
+                    let color = "red";
+                    let predator = new Agent(id, position, velocity, .7, 2, "blue");
+                    this.predators.push(predator);
+                }
                 for (let i = 0; i < this.initialPreyPop; i++) {
                     let id = i;
                     let position = new Vector(Math.floor(Math.random() * 350 + 25), Math.floor(Math.random() * 350 + 25));
                     let velocity = new Vector((Math.random() * 2 - 1), (Math.random() * 2 - 1));
                     velocity.normalize();
                     let color = "plum";
-                    let agent = new Agent(id, position, velocity, .4, 2, color);
-                    this.agents.push(agent);
+                    let prey = new Agent(id, position, velocity, .4, 2, "plum");
+                    this.preys.push(prey);
                 }
             },
 
             updateAgents: function () {
-
-                let agent = {};
+                let predator = {};
+                let prey = {};
                 let avoidanceVelocity = new Vector (0, 0);
                 let alignmentVelocity = new Vector (0, 0);
                 let cohesionVelocity = new Vector (0, 0);
@@ -354,41 +386,70 @@
                     this.tick++;
                 }
 
-                for (let i = 0; i < this.agents.length; i++) {
-                    agent = this.agents[i];
-
-                    if (agent.id % 10 === this.tick % 10){
-                        agent.neighbors = [];
-                        agent.targetVel.reset();
-                        agent.acceleration.reset();
-                        if (agent.outOfBounds()){
-                            agent.updateOutOfBoundsVelocity();
-                            agent.updateAcceleration();
+                for (let i = 0; i < this.predators.length; i ++){
+                    predator = this.predators[i];
+                    if (predator.id % 10 === this.tick % 10) {
+                        predator.targetVel.reset();
+                        predator.acceleration.reset();
+                        if (predator.outOfBounds()) {
+                            predator.updateOutOfBoundsVelocity();
+                            predator.updateAcceleration();
                         }
                         else {
-                            agent.findNeighbors();
-                            if (agent.neighbors.length > 0){
-                                avoidanceVelocity = getAvoidanceVelocity(agent);
+                            predator.findPredatorNeighbors();
+                            if (predator.neighbors.length > 0){
+                                avoidanceVelocity = getAvoidanceVelocity(predator);
+                                console.log("avoid vel", avoidanceVelocity);
+                                console.log(predator.neighbors);
+                                predator.targetVel.add(avoidanceVelocity);
+                                predator.targetVel.normalize();
+                                predator.updateAcceleration();
+                            }
+                            else{
+                                predator.getRandomVelocity();
+                                predator.updateAcceleration();
+                            }
+                        }
+                    }
+                    predator.updateVelocity();
+                    predator.updatePosition();
+                }
+
+                for (let i = 0; i < this.preys.length; i++) {
+                    prey = this.preys[i];
+
+                    if (prey.id % 10 === this.tick % 10){
+                        prey.neighbors = [];
+                        prey.targetVel.reset();
+                        prey.acceleration.reset();
+                        if (prey.outOfBounds()){
+                            prey.updateOutOfBoundsVelocity();
+                            prey.updateAcceleration();
+                        }
+                        else {
+                            prey.findPreyNeighbors();
+                            if (prey.neighbors.length > 0){
+                                avoidanceVelocity = getAvoidanceVelocity(prey);
                                 avoidanceVelocity.scaleBy(this.avoidanceWeight);
-                                alignmentVelocity = getAlignmentVelocity(agent);
+                                alignmentVelocity = getAlignmentVelocity(prey);
                                 alignmentVelocity.scaleBy(this.alignmentWeight);
-                                cohesionVelocity = getCohesionVelocity(agent);
+                                cohesionVelocity = getCohesionVelocity(prey);
                                 cohesionVelocity.scaleBy(this.cohesionWeight);
-                                agent.targetVel.add(avoidanceVelocity);
-                                agent.targetVel.add(alignmentVelocity);
-                                agent.targetVel.add(cohesionVelocity);
-                                agent.targetVel.normalize();
-                                agent.updateAcceleration();
+                                prey.targetVel.add(avoidanceVelocity);
+                                prey.targetVel.add(alignmentVelocity);
+                                prey.targetVel.add(cohesionVelocity);
+                                prey.targetVel.normalize();
+                                prey.updateAcceleration();
                             }
                             else {
-                                agent.getRandomVelocity();
-                                agent.updateAcceleration();
+                                prey.getRandomVelocity();
+                                prey.updateAcceleration();
                             }
                         }
                     }
 
-                    agent.updateVelocity();
-                    agent.updatePosition();
+                    prey.updateVelocity();
+                    prey.updatePosition();
 
                 }
             },
@@ -406,7 +467,8 @@
                 this.animating = false;
 
                 window.cancelAnimationFrame(animationId);
-                this.agents = [];
+                this.preys = [];
+                this.predators = [];
                 this.tick = 0;
                 app.createAgents();
             },
