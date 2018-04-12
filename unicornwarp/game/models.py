@@ -11,6 +11,13 @@ class gameState(models.Model):
 
 
     def toDict(self):
-        return {'id': self.id, 'title': self.title, 'alignmentRadius': self.alignmentRadius,
-                'alignmentWeight': self.alignmentWeight, 'avoidanceRadius': self.avoidanceRadius,
-                'cohesionRadius': self.cohesionRadius}
+        return {
+                'id': self.id,
+                'title': self.title,
+                'alignmentRadius': self.alignmentRadius,
+                'alignmentWeight': self.alignmentWeight,
+                'avoidanceRadius': self.avoidanceRadius,
+                'avoidanceWeight': self.avoidanceWeight,
+                'cohesionRadius': self.cohesionRadius,
+                'cohesionWeight': self.cohesionWeight,
+                }

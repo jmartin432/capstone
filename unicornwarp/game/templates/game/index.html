@@ -43,7 +43,7 @@
                                     <th>State Title</th>
                                 </tr>
                                 <tr v-for="state in states">
-                                    <td><input type="radio" name="state" v-bind:value="state.id"></td>
+                                    <td><input type="radio" name="state" v-bind:value="state.id" v-model="loadId"></td>
                                     <td><% state.title %></td>
                                 </tr>
                             </table>
@@ -75,8 +75,6 @@
                             <input type="range" min="1" max="100" v-model="avoidanceRadius"><br>
                             <span>Avoidance Weight: <% avoidanceWeight %></span><br>
                             <input type="range" min=".1" max="1" step=".1" v-model="avoidanceWeight"><br>
-                            <span>Cohesion Radius: <% cohesionRadius %></span><br>
-                            <input type="range" min="1" max="100" v-model="cohesionRadius"><br>
                             <span>Cohesion Weight: <% cohesionWeight %></span><br>
                             <input type="range" min=".1" max="1" step=".1" v-model="cohesionWeight"><br>
                             <span>Current Prey Population: <% preys.length %></span><br>
@@ -363,6 +361,7 @@
     var app = new Vue({
         el: '#app',
         data: {
+            loadId: null,
             states: [],
             title: "",
             view: 'play',
@@ -437,7 +436,7 @@
                     app.title = '';
                 }).fail(function () {
                     alert('Fail!');
-                })
+                });
                 this.view = 'play';
             },
 
@@ -450,22 +449,21 @@
             },
 
             loadState: function() {
-                let id = parseInt(document.querySelector('input[name="state"]:checked').value);
 
-                console.log("id:", id);
-                for (let i = 0; i < this.states.length; i++) {
-                    console.log(this.states[i].id);
-                    if (this.states[i].id === id) {
+                console.log("id:", app.loadId);
+                for (let i = 0; i < app.states.length; i++) {
+                    console.log(app.states[i].id);
+                    if (app.states[i].id === app.loadId) {
                         console.log(i, "found");
-                        this.alignmentRadius = this.states[i].alignmentRadius;
-                        this.alignmentWeight = this.states[i].alignmentWeight;
-                        this.avoidanceRadius = this.states[i].avoidanceRadius;
-                        this.avoidanceWeight = this.states[i].avoidanceWeight;
-                        this.cohesionRadius = this.states[i].cohesionRadius;
-                        this.cohesionWeight = this.states[i].cohesionWeight;
+                        app.alignmentRadius = app.states[i].alignmentRadius;
+                        app.alignmentWeight = app.states[i].alignmentWeight;
+                        app.avoidanceRadius = app.states[i].avoidanceRadius;
+                        app.avoidanceWeight = app.states[i].avoidanceWeight;
+                        app.cohesionRadius = app.states[i].cohesionRadius;
+                        app.cohesionWeight = app.states[i].cohesionWeight;
                     }
                 }
-                this.view = 'play';
+                app.view = 'play';
             },
 
             showSave: function(){
@@ -473,6 +471,7 @@
             },
 
             showLoad: function(){
+                this.animating = false;
                 this.view = 'load';
             },
 
