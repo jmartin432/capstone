@@ -5,6 +5,10 @@
     <script src="https://cdn.jsdelivr.net/npm/vue"></script>
     <script src="https://d3js.org/d3.v4.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/4.0.1/math.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/js-cookie/2.1.4/js.cookie.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.3.1.js"
+			  integrity="sha256-2Kok7MbOyxpgUVvAk/HJ2jigOSYS2auK4Pfzbm7uH60="
+			  crossorigin="anonymous"></script>
 
     {% load static %}
 
@@ -15,48 +19,85 @@
 
 <body>
     <div id="app">
-        <table>
-            <tr>
-                <td>
-                    <div id="output">
-                        <svg id="main_svg" width="400" height="400">
-                            <g class="prey" v-for="prey in preys" v-bind:transform="transformString(prey)" v-bind:id="prey.id">
-                                <path v-bind:d="pathString(prey)" stroke="black" fill="plum" stroke_width="1"></path>
-                            </g>
-                            <g class="predator" v-for="predator in predators" v-bind:transform="transformString(predator)" v-bind:id="predator.id">
-                                <path v-bind:d="pathString(predator)" stroke="black" fill="blue" stroke_width="1"></path>
-                            </g>
-                        </svg>
-                    </div>
-                </td>
-                <td>
-                    <div id="controls">
-                        <button v-on:click="play" :disabled=disablePlay>Play</button>
-                        <button v-on:click="pause" :disabled=disablePause>Pause</button>
-                        <button v-on:click="reset">Reset</button><br>
-                        <span>Initial Prey Population: <% initialPreyPop %></span><br>
-                        <input type="range" min="1" max="100" v-model="initialPreyPop"><br>
-                        <span>Initial Predator Population: <% initialPredPop %></span><br>
-                        <input type="range" min="1" max="10" v-model="initialPredPop"><br>
-                        <span>Alignment Radius: <% alignmentRadius %></span><br>
-                        <input type="range" min="1" max="100" v-model="alignmentRadius"><br>
-                        <span>Alignment Weight: <% alignmentWeight %></span><br>
-                        <input type="range" min=".1" max="1" step=".1" v-model="alignmentWeight"><br>
-                        <span>Avoidance Radius: <% avoidanceRadius %></span><br>
-                        <input type="range" min="1" max="100" v-model="avoidanceRadius"><br>
-                        <span>Avoidance Weight: <% avoidanceWeight %></span><br>
-                        <input type="range" min=".1" max="1" step=".1" v-model="avoidanceWeight"><br>
-                        <span>Cohesion Radius: <% cohesionRadius %></span><br>
-                        <input type="range" min="1" max="100" v-model="cohesionRadius"><br>
-                        <span>Cohesion Weight: <% cohesionWeight %></span><br>
-                        <input type="range" min=".1" max="1" step=".1" v-model="cohesionWeight"><br>
-                        <span>Current Prey Population: <% preys.length %></span><br>
-                        <span>Current Tick: <% tick %></span><br>
-                    </div>
-                </td>
-            </tr>
-        </table>
-
+        <div id="play">
+            <button v-on:click="play" :disabled=disablePlay>Play</button>
+            <button v-on:click="pause" :disabled=disablePause>Pause</button>
+            <button v-on:click="reset">Reset</button>
+            <button v-on:click="showSave">Save</button>
+            <button v-on:click="showLoad">Load</button>
+            <span>Current Tick: <% tick %></span><br>
+        </div>
+        <div id="pop-controls">
+            <table>
+                <tr>
+                    <td>
+                        <div id="save" v-if="view==='save'">
+                            <input type="title" placeholder="Title" v-model="title"><br>
+                            <button type="submit" :disabled=disableSave v-on:click="saveState">Submit</button>
+                            <button type="cancel" v-on:click="cancelSave">Cancel</button>
+                        </div>
+                        <div id="load" v-else-if="view==='load'">
+                            <table id="book_list">
+                                <tr class="active">
+                                    <th></th>
+                                    <th>State Title</th>
+                                </tr>
+                                <tr v-for="state in states">
+                                    <td><input type="radio" name="state" v-bind:value="state.id"></td>
+                                    <td><% state.title %></td>
+                                </tr>
+                            </table>
+                            <button type="submit" :disabled=disableLoad v-on:click="loadState">Submit</button>
+                            <button type="cancel" v-on:click="cancelLoad">Cancel</button>
+                        </div>
+                        <div id="output" v-else-if="view==='play'">
+                            <svg id="main_svg" width="400" height="400">
+                                <g class="prey" v-for="prey in preys" v-bind:transform="transformString(prey)" v-bind:id="prey.id">
+                                    <path v-bind:d="pathString(prey)" stroke="black" v-bind:fill="prey.color" stroke_width="1" v-bind:fill-opacity="opacityString(prey)"></path>
+                                </g>
+                                <g class="predator" v-for="predator in predators" v-bind:transform="transformString(predator)" v-bind:id="predator.id">
+                                    <path v-bind:d="pathString(predator)" stroke="black" v-bind:fill="predator.color" stroke_width="1" v-bind:fill-opacity="opacityString(predator)"></path>
+                                </g>
+                            </svg>
+                        </div>
+                    </td>
+                    <td>
+                        <div id="prey-controls" class="sliders">
+                            <span>Initial Prey Population: <% initialPreyPop %></span><br>
+                            <input type="range" min="0" max="100" v-model="initialPreyPop"><br>
+                            <span>Speed: <% preySpeed %></span><br>
+                            <input type="range" min="0" max="2" step=".1" v-model="preySpeed"><br>
+                            <span>Alignment Radius: <% alignmentRadius %></span><br>
+                            <input type="range" min="1" max="100" v-model="alignmentRadius"><br>
+                            <span>Alignment Weight: <% alignmentWeight %></span><br>
+                            <input type="range" min=".1" max="1" step=".1" v-model="alignmentWeight"><br>
+                            <span>Avoidance Radius: <% avoidanceRadius %></span><br>
+                            <input type="range" min="1" max="100" v-model="avoidanceRadius"><br>
+                            <span>Avoidance Weight: <% avoidanceWeight %></span><br>
+                            <input type="range" min=".1" max="1" step=".1" v-model="avoidanceWeight"><br>
+                            <span>Cohesion Radius: <% cohesionRadius %></span><br>
+                            <input type="range" min="1" max="100" v-model="cohesionRadius"><br>
+                            <span>Cohesion Weight: <% cohesionWeight %></span><br>
+                            <input type="range" min=".1" max="1" step=".1" v-model="cohesionWeight"><br>
+                            <span>Current Prey Population: <% preys.length %></span><br>
+                        </div>
+                    </td>
+                    <td>
+                        <div id="pred-controls" class="sliders">
+                            <span>Initial Predator Population: <% initialPredPop %></span><br>
+                            <input type="range" min="0" max="10" v-model="initialPredPop"><br>
+                            <span>Speed: <% predSpeed %></span><br>
+                            <input type="range" min="0" max="2" step=".1" v-model="predSpeed"><br>
+                            <span>Avoidance Radius: <% avoidanceRadius %></span><br>
+                            <input type="range" min="1" max="100" v-model="avoidanceRadius"><br>
+                            <span>Avoidance Weight: <% avoidanceWeight %></span><br>
+                            <input type="range" min=".1" max="1" step=".1" v-model="avoidanceWeight"><br>
+                            <span>Current Predator Population: <% predators.length %></span><br>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+        </div>
     </div>
 
 
@@ -79,8 +120,10 @@
 
     // Agent Class
     class Agent {
-        constructor(id, pos, vel, scale_factor, speed_factor, color) {
+        constructor(id, type, age, pos, vel, scale_factor, speed_factor, color) {
             this.id = id;
+            this.type = type;
+            this.age = age;
             this.position = pos;
             this.velocity = vel;
             this.acceleration = new Vector (0,0);
@@ -164,12 +207,21 @@
         }
 
 
-
         getBearing (){
             return Math.atan2(this.velocity.y, this.velocity.x) * 180 / Math.PI;
         }
 
         getScaleFactor (){
+            let lifeSpan = 0;
+            if (this.type = "prey"){
+                lifeSpan = app.preyLifeSpan;
+            }
+            else{
+                lifeSpan = app.predatorLifeSpan;
+            }
+            if (this.age < .75 * lifeSpan){
+                return (this.scaleFactor * (this.age / (.75 * lifeSpan)));
+            }
             return this.scaleFactor;
         }
 
@@ -210,10 +262,6 @@
                 return true;
             }
             return false;
-        }
-
-        round(v1){
-
         }
 
         normalize (){
@@ -315,8 +363,19 @@
     var app = new Vue({
         el: '#app',
         data: {
+            states: [],
+            title: "",
+            view: 'play',
             predators: [],
+            predatorIdCount: 0,
             preys: [],
+            preyIdCount: 0,
+            preyLifeSpan: 1000,
+            preyReproduction: 20,
+            predatorLifeSpan: 1000,
+            predatorReproduction: 40,
+            predSpeed: 1,
+            preySpeed: 1,
             animating: false,
             cohesionOn: true,
             avoidanceOn: true,
@@ -326,6 +385,9 @@
             initialPreyPop: 50,
             initialPredPop: 4,
             population: 0,
+            attackRadius: 50,
+            runRadius: 40,
+            killRadius: 3,
             alignmentRadius: 50,
             alignmentWeight: 1,
             avoidanceWeight: 1,
@@ -339,6 +401,85 @@
         delimiters: ["<%","%>"],
 
         methods: {
+
+            importStates: function(){
+                let url = "{% url 'game:importstates' %}";
+                $.ajax({method: "GET", url: url})
+                .done(function (data) {
+                    console.log(data);
+                    app.states = data.states;
+                })
+                .fail(function () {
+                    alert('Fail!');
+                })
+            },
+
+            saveState: function(){
+                let url = "{% url 'game:savestate' %}";
+                let csrf_token = Cookies.get('csrftoken');
+                let data = JSON.stringify({title: app.title,
+                        alignmentRadius: app.alignmentRadius,
+                        alignmentWeight: app.alignmentWeight,
+                        avoidanceRadius: app.avoidanceRadius,
+                        avoidanceWeight: app.avoidanceWeight,
+                        cohesionRadius: app.cohesionRadius,
+                        cohesionWeight: app.cohesionWeight});
+                console.log(data);
+                $.ajax({
+                    method: "POST",
+                    url: url,
+                    headers: {'X-CSRFToken': csrf_token},
+                    contentType: "application/json; charset=utf-8",
+                    data: data,
+                    dataType: 'json'
+                }).done(function () {
+                    app.importStates();
+                    app.title = '';
+                }).fail(function () {
+                    alert('Fail!');
+                })
+                this.view = 'play';
+            },
+
+            cancelSave: function(){
+                this.view = 'play';
+            },
+
+            cancelLoad: function(){
+                this.view = 'play';
+            },
+
+            loadState: function() {
+                let id = parseInt(document.querySelector('input[name="state"]:checked').value);
+
+                console.log("id:", id);
+                for (let i = 0; i < this.states.length; i++) {
+                    console.log(this.states[i].id);
+                    if (this.states[i].id === id) {
+                        console.log(i, "found");
+                        this.alignmentRadius = this.states[i].alignmentRadius;
+                        this.alignmentWeight = this.states[i].alignmentWeight;
+                        this.avoidanceRadius = this.states[i].avoidanceRadius;
+                        this.avoidanceWeight = this.states[i].avoidanceWeight;
+                        this.cohesionRadius = this.states[i].cohesionRadius;
+                        this.cohesionWeight = this.states[i].cohesionWeight;
+                    }
+                }
+                this.view = 'play';
+            },
+
+            showSave: function(){
+                this.view = 'save';
+            },
+
+            showLoad: function(){
+                this.view = 'load';
+            },
+
+            showPlay: function(){
+                this.view = 'play';
+            },
+
             transformString: function (agent) {
                 return "translate(" + agent.position.getX() + "," + agent.position.getY() + ")rotate(" + agent.getBearing() + ")scale(" + agent.getScaleFactor() + ")";
             },
@@ -351,24 +492,64 @@
                 return agent.color;
             },
 
+            opacityString: function (agent){
+                let lifeSpan = 0;
+                if (agent.type = "prey"){
+                    lifeSpan = app.preyLifeSpan;
+                }
+                else{
+                    lifeSpan = app.predatorLifeSpan;
+                }
+                if (agent.age > .75 * lifeSpan){
+                    return (lifeSpan - agent.age) / (.25 * lifeSpan);
+                }
+                return 1;
+            },
+
+            removeDead: function(group, dead) {
+                let alive = [];
+                for ( let i = 0; i < group.length; i++){
+                    if (dead.indexOf(i) === -1){
+                        alive.push(group[i])
+                    }
+                }
+                return alive;
+            },
+
+            createPredator: function () {
+                let id = this.predatorIdCount;
+                let age = 0;
+                if (this.predatorIdCount < this.initialPredPop){
+                    age = Math.floor(Math.random() * 10 + 1);
+                }
+                let position = new Vector(Math.floor(Math.random() * 350 + 25), Math.floor(Math.random() * 350 + 25));
+                let velocity = new Vector((Math.random() * 2 - 1), (Math.random() * 2 - 1));
+                velocity.normalize();
+                let predator = new Agent(id, "predator", age, position, velocity, .7, 2.2, "blue");
+                this.predators.push(predator);
+                this.predatorIdCount++;
+            },
+
+            createPrey: function () {
+                let id = this.preyIdCount;
+                let age = 0;
+                if (this.preyIdCount < this.initialPreyPop){
+                    age = Math.floor(Math.random() * 10 + 1);
+                }
+                let position = new Vector(Math.floor(Math.random() * 350 + 25), Math.floor(Math.random() * 350 + 25));
+                let velocity = new Vector((Math.random() * 2 - 1), (Math.random() * 2 - 1));
+                velocity.normalize();
+                let prey = new Agent(id, "prey", age, position, velocity, .4, 2.2, "plum");
+                this.preys.push(prey);
+                this.preyIdCount++;
+            },
+
             createAgents: function () {
                 for (let i = 0; i < this.initialPredPop; i++) {
-                    let id = i;
-                    let position = new Vector(Math.floor(Math.random() * 350 + 25), Math.floor(Math.random() * 350 + 25));
-                    let velocity = new Vector((Math.random() * 2 - 1), (Math.random() * 2 - 1));
-                    velocity.normalize();
-                    let color = "red";
-                    let predator = new Agent(id, position, velocity, .7, 2, "blue");
-                    this.predators.push(predator);
+                    this.createPredator();
                 }
                 for (let i = 0; i < this.initialPreyPop; i++) {
-                    let id = i;
-                    let position = new Vector(Math.floor(Math.random() * 350 + 25), Math.floor(Math.random() * 350 + 25));
-                    let velocity = new Vector((Math.random() * 2 - 1), (Math.random() * 2 - 1));
-                    velocity.normalize();
-                    let color = "plum";
-                    let prey = new Agent(id, position, velocity, .4, 2, "plum");
-                    this.preys.push(prey);
+                    this.createPrey();
                 }
             },
 
@@ -378,6 +559,8 @@
                 let avoidanceVelocity = new Vector (0, 0);
                 let alignmentVelocity = new Vector (0, 0);
                 let cohesionVelocity = new Vector (0, 0);
+                let deadPredators = [];
+                let deadPrey = [];
 
 
 
@@ -386,9 +569,19 @@
                     this.tick++;
                 }
 
+                //Update Predators
+                if (this.tick % this.predatorReproduction === 0 && this.predators.length >= 2){
+                    this.createPredator();
+                }
                 for (let i = 0; i < this.predators.length; i ++){
                     predator = this.predators[i];
+                    predator.age++;
+                    if(predator.age > app.predatorLifeSpan){
+                        deadPredators.push(i);
+                    }
+
                     if (predator.id % 10 === this.tick % 10) {
+                        let attacking = false;
                         predator.targetVel.reset();
                         predator.acceleration.reset();
                         if (predator.outOfBounds()) {
@@ -396,16 +589,16 @@
                             predator.updateAcceleration();
                         }
                         else {
-                            predator.findPredatorNeighbors();
-                            if (predator.neighbors.length > 0){
-                                avoidanceVelocity = getAvoidanceVelocity(predator);
-                                console.log("avoid vel", avoidanceVelocity);
-                                console.log(predator.neighbors);
-                                predator.targetVel.add(avoidanceVelocity);
-                                predator.targetVel.normalize();
-                                predator.updateAcceleration();
+                            for (let j = 0; j < app.preys.length; j++){
+                                if (Vector.distanceSquared(predator.position, app.preys[j].position) < app.attackRadius * app.attackRadius){
+                                    predator.targetVel = Vector.difference(app.preys[j].position, predator.position);
+                                    predator.targetVel.normalize();
+                                    predator.updateAcceleration();
+                                    attacking = true;
+                                    break;
+                                }
                             }
-                            else{
+                            if (!attacking){
                                 predator.getRandomVelocity();
                                 predator.updateAcceleration();
                             }
@@ -414,11 +607,26 @@
                     predator.updateVelocity();
                     predator.updatePosition();
                 }
+                if (deadPredators.length > 0){
+                    this.predators = this.removeDead(this.predators, deadPredators);
+                }
+                deadPredators = [];
+                //Update Prey
+
+                if (this.tick % this.preyReproduction === 0 && this.preys.length >= 2){
+                    this.createPrey();
+                }
 
                 for (let i = 0; i < this.preys.length; i++) {
                     prey = this.preys[i];
+                    prey.age++;
+                    if(prey.age > app.preyLifeSpan){
+                        deadPrey.push(i);
+                    }
+
 
                     if (prey.id % 10 === this.tick % 10){
+                        let running = false;
                         prey.neighbors = [];
                         prey.targetVel.reset();
                         prey.acceleration.reset();
@@ -427,23 +635,34 @@
                             prey.updateAcceleration();
                         }
                         else {
-                            prey.findPreyNeighbors();
-                            if (prey.neighbors.length > 0){
-                                avoidanceVelocity = getAvoidanceVelocity(prey);
-                                avoidanceVelocity.scaleBy(this.avoidanceWeight);
-                                alignmentVelocity = getAlignmentVelocity(prey);
-                                alignmentVelocity.scaleBy(this.alignmentWeight);
-                                cohesionVelocity = getCohesionVelocity(prey);
-                                cohesionVelocity.scaleBy(this.cohesionWeight);
-                                prey.targetVel.add(avoidanceVelocity);
-                                prey.targetVel.add(alignmentVelocity);
-                                prey.targetVel.add(cohesionVelocity);
-                                prey.targetVel.normalize();
-                                prey.updateAcceleration();
+                            for (let j = 0; j < app.predators.length; j++){
+                                if (Vector.distanceSquared(prey.position, app.predators[j].position) < app.runRadius * app.runRadius){
+                                    prey.targetVel = Vector.difference(prey.position, app.predators[j].position);
+                                    prey.targetVel.normalize();
+                                    prey.updateAcceleration();
+                                    running = true;
+                                    break;
+                                }
                             }
-                            else {
-                                prey.getRandomVelocity();
-                                prey.updateAcceleration();
+                            if (!running) {
+                                prey.findPreyNeighbors();
+                                if (prey.neighbors.length > 0) {
+                                    avoidanceVelocity = getAvoidanceVelocity(prey);
+                                    avoidanceVelocity.scaleBy(this.avoidanceWeight);
+                                    alignmentVelocity = getAlignmentVelocity(prey);
+                                    alignmentVelocity.scaleBy(this.alignmentWeight);
+                                    cohesionVelocity = getCohesionVelocity(prey);
+                                    cohesionVelocity.scaleBy(this.cohesionWeight);
+                                    prey.targetVel.add(avoidanceVelocity);
+                                    prey.targetVel.add(alignmentVelocity);
+                                    prey.targetVel.add(cohesionVelocity);
+                                    prey.targetVel.normalize();
+                                    prey.updateAcceleration();
+                                }
+                                else {
+                                    prey.getRandomVelocity();
+                                    prey.updateAcceleration();
+                                }
                             }
                         }
                     }
@@ -452,9 +671,14 @@
                     prey.updatePosition();
 
                 }
+
+                if (deadPrey.length > 0) {
+                    this.preys = this.removeDead(this.preys, deadPrey);
+                }
+                deadPrey = [];
             },
 
-             play: function(){
+            play: function(){
                 this.animating = true;
                 animationId = window.requestAnimationFrame(this.updateAgents);
             },
@@ -477,16 +701,24 @@
 
         computed: {
             disablePlay: function(){
-                return this.animating;
+                return (this.animating || this.view === 'save' || this.view === 'load');
             },
 
-            disablePause: function(){
+            disablePause: function() {
                 return !this.animating;
             },
+
+            disableSave: function(){
+                return this.title.length === 0;
+            },
+
+            disableLoad: function() {
+                return false;
+            }
         },
     });
 
-
+    app.importStates();
     app.createAgents();
 
 

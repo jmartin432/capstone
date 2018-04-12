@@ -1,3 +1,16 @@
 from django.db import models
 
-# Create your models here.
+class gameState(models.Model):
+    title = models.CharField(max_length=200)
+    alignmentRadius = models.IntegerField()
+    alignmentWeight = models.FloatField()
+    avoidanceRadius = models.IntegerField()
+    avoidanceWeight = models.FloatField()
+    cohesionRadius = models.IntegerField()
+    cohesionWeight = models.FloatField()
+
+
+    def toDict(self):
+        return {'id': self.id, 'title': self.title, 'alignmentRadius': self.alignmentRadius,
+                'alignmentWeight': self.alignmentWeight, 'avoidanceRadius': self.avoidanceRadius,
+                'cohesionRadius': self.cohesionRadius}
