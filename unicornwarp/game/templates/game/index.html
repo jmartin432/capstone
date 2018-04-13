@@ -84,12 +84,12 @@
                         <div id="pred-controls" class="sliders">
                             <span>Initial Predator Population: <% initialPredPop %></span><br>
                             <input type="range" min="0" max="10" v-model="initialPredPop"><br>
-                            <span>Speed: <% predSpeed %></span><br>
-                            <input type="range" min="0" max="2" step=".1" v-model="predSpeed"><br>
-                            <span>Avoidance Radius: <% avoidanceRadius %></span><br>
-                            <input type="range" min="1" max="100" v-model="avoidanceRadius"><br>
-                            <span>Avoidance Weight: <% avoidanceWeight %></span><br>
-                            <input type="range" min=".1" max="1" step=".1" v-model="avoidanceWeight"><br>
+                            <span>Speed: <% predatorSpeed %></span><br>
+                            <input type="range" min="0" max="2" step=".1" v-model="predatorSpeed"><br>
+                            <span>Avoidance Radius: <% predatorAvoidanceRadius %></span><br>
+                            <input type="range" min="1" max="100" v-model="predatorAvoidanceRadius"><br>
+                            <span>Avoidance Weight: <% predatorAvoidanceWeight %></span><br>
+                            <input type="range" min=".1" max="1" step=".1" v-model="predatorAvoidanceWeight"><br>
                             <span>Current Predator Population: <% predators.length %></span><br>
                         </div>
                     </td>
@@ -168,7 +168,6 @@
             this.acceleration.scaleBy(0.1);
         }
 
-
         findPredatorNeighbors(){
             this.neighbors = [];
             for (let i = 0; i < app.predators.length; i++) {
@@ -181,6 +180,7 @@
                 }
             }
         }
+
         findPreyNeighbors(){
             this.neighbors = [];
             for (let i = 0; i < app.preys.length; i++) {
@@ -217,8 +217,8 @@
             else{
                 lifeSpan = app.predatorLifeSpan;
             }
-            if (this.age < .75 * lifeSpan){
-                return (this.scaleFactor * (this.age / (.75 * lifeSpan)));
+            if (this.age < .25 * lifeSpan){
+                return (this.scaleFactor * (this.age / (.25 * lifeSpan)));
             }
             return this.scaleFactor;
         }
@@ -227,6 +227,7 @@
             this.velocity.add(this.acceleration);
             this.velocity.normalize();
         }
+
         updatePosition (){
             this.position.add(this.velocity);
         }
@@ -367,18 +368,17 @@
             view: 'play',
             predators: [],
             predatorIdCount: 0,
+            predatorAvoidanceRadius: 50,
+            predatorAvoidanceWeight: 1,
             preys: [],
             preyIdCount: 0,
             preyLifeSpan: 1000,
             preyReproduction: 20,
             predatorLifeSpan: 1000,
-            predatorReproduction: 40,
-            predSpeed: 1,
+            predatorReproduction: 100,
+            predatorSpeed: 1,
             preySpeed: 1,
             animating: false,
-            cohesionOn: true,
-            avoidanceOn: true,
-            alignmentOn: true,
             agentSpeed: 1,
             animationRate: 1,
             initialPreyPop: 50,
@@ -585,30 +585,52 @@
                         predator.acceleration.reset();
                         if (predator.outOfBounds()) {
                             predator.updateOutOfBoundsVelocity();
+                            predator.velocity.scaleBy(this.predatorSpeed);
                             predator.updateAcceleration();
                         }
                         else {
-                            for (let j = 0; j < app.preys.length; j++){
-                                if (Vector.distanceSquared(predator.position, app.preys[j].position) < app.attackRadius * app.attackRadius){
-                                    predator.targetVel = Vector.difference(app.preys[j].position, predator.position);
-                                    predator.targetVel.normalize();
-                                    predator.updateAcceleration();
-                                    attacking = true;
-                                    break;
-                                }
-                            }
-                            if (!attacking){
-                                predator.getRandomVelocity();
+                            predator.findPredatorNeighbors();
+                            if (predator.neighbors.length > 0) {
+                                avoidanceVelocity = getAvoidanceVelocity(predator);
+                                avoidanceVelocity.scaleBy(this.avoidanceWeight);
+                                predator.targetVel.add(avoidanceVelocity);
+                                predator.targetVel.normalize();
+                                predator.targetVel.scaleBy(this.predatorSpeed);
                                 predator.updateAcceleration();
                             }
+                            else{
+                                for (let j = 0; j < app.preys.length; j++) {
+                                    if (Vector.distanceSquared(predator.position, app.preys[j].position) < app.killRadius * app.killRadius){
+                                        deadPrey.push(i);
+                                        console.log('kill');
+                                    }
+                                    if (Vector.distanceSquared(predator.position, app.preys[j].position) < app.attackRadius * app.attackRadius) {
+                                        predator.targetVel = Vector.difference(app.preys[j].position, predator.position);
+                                        predator.targetVel.normalize();
+                                        predator.targetVel.scaleBy(this.predatorSpeed);
+                                        predator.updateAcceleration();
+                                        attacking = true;
+                                        break;
+                                    }
+                                }
+                            }
+
+                            if (!attacking){
+                                predator.getRandomVelocity();
+                                predator.velocity.scaleBy(this.predatorSpeed);
+                                predator.updateAcceleration();
+                            }
+
                         }
                     }
                     predator.updateVelocity();
+                    predator.velocity.scaleBy(this.predatorSpeed);
                     predator.updatePosition();
                 }
                 if (deadPredators.length > 0){
                     this.predators = this.removeDead(this.predators, deadPredators);
                 }
+
                 deadPredators = [];
                 //Update Prey
 
@@ -631,6 +653,7 @@
                         prey.acceleration.reset();
                         if (prey.outOfBounds()){
                             prey.updateOutOfBoundsVelocity();
+                            prey.velocity.scaleBy(this.preySpeed);
                             prey.updateAcceleration();
                         }
                         else {
@@ -638,6 +661,7 @@
                                 if (Vector.distanceSquared(prey.position, app.predators[j].position) < app.runRadius * app.runRadius){
                                     prey.targetVel = Vector.difference(prey.position, app.predators[j].position);
                                     prey.targetVel.normalize();
+                                    prey.targetVel.scaleBy(this.preySpeed);
                                     prey.updateAcceleration();
                                     running = true;
                                     break;
@@ -656,10 +680,12 @@
                                     prey.targetVel.add(alignmentVelocity);
                                     prey.targetVel.add(cohesionVelocity);
                                     prey.targetVel.normalize();
+                                    prey.targetVel.scaleBy(this.preySpeed);
                                     prey.updateAcceleration();
                                 }
                                 else {
                                     prey.getRandomVelocity();
+                                    prey.velocity.scaleBy(this.preySpeed);
                                     prey.updateAcceleration();
                                 }
                             }
@@ -667,6 +693,7 @@
                     }
 
                     prey.updateVelocity();
+                    prey.targetVel.scaleBy(this.preySpeed);
                     prey.updatePosition();
 
                 }
