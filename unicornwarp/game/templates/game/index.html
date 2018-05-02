@@ -13,11 +13,13 @@
     {% load static %}
 
     <link rel="stylesheet" type="text/css" href="{% static 'game/game.css' %}" />
+    <script scr="{% static 'game/game.js' %}"></script>
 
 
 </head>
 
 <body>
+    <h1> Unicorn Warp!!!</h1>
     <div id="app">
         <div id="play">
             <button v-on:click="play" :disabled=disablePlay>Play</button>
@@ -98,16 +100,12 @@
         </div>
     </div>
 
-
-
-
 <script>
-
     let animationId = "";
 
-    function getAverageVelocity(agentList){
-        let velocitySum = new Vector (0,0);
-        for (let i = 0; i < agentList.length; i++){
+    function getAverageVelocity(agentList) {
+        let velocitySum = new Vector(0, 0);
+        for (let i = 0; i < agentList.length; i++) {
             velocitySum.x += agentList[i].velocity.x;
             velocitySum.y += agentList[i].velocity.y
         }
@@ -124,8 +122,8 @@
             this.age = age;
             this.position = pos;
             this.velocity = vel;
-            this.acceleration = new Vector (0,0);
-            this.targetVel = new Vector (this.velocity.x, this.velocity.y);
+            this.acceleration = new Vector(0, 0);
+            this.targetVel = new Vector(this.velocity.x, this.velocity.y);
             this.scaleFactor = scale_factor;
             this.speedFactor = speed_factor;
             this.color = color;
@@ -133,7 +131,7 @@
 
         }
 
-        outOfBounds(){
+        outOfBounds() {
             if (this.position.x < 20 && this.velocity.x < 0) {
                 return true;
             }
@@ -150,7 +148,7 @@
             return false;
         }
 
-        updateOutOfBoundsVelocity(){
+        updateOutOfBoundsVelocity() {
             if (this.position.x < 20 && this.velocity.x < 0) {
                 this.targetVel.x = -1 * this.velocity.x;
             }
@@ -168,10 +166,10 @@
             this.acceleration.scaleBy(0.1);
         }
 
-        findPredatorNeighbors(){
+        findPredatorNeighbors() {
             this.neighbors = [];
             for (let i = 0; i < app.predators.length; i++) {
-                if (this === app.predators[i]){
+                if (this === app.predators[i]) {
                     continue;
                 }
                 if (Vector.distanceSquared(app.predators[i].position, this.position) < (app.alignmentRadius * app.alignmentRadius)) {
@@ -181,10 +179,10 @@
             }
         }
 
-        findPreyNeighbors(){
+        findPreyNeighbors() {
             this.neighbors = [];
             for (let i = 0; i < app.preys.length; i++) {
-                if (this === app.preys[i]){
+                if (this === app.preys[i]) {
                     continue;
                 }
                 if (Vector.distanceSquared(app.preys[i].position, this.position) < (app.alignmentRadius * app.alignmentRadius)) {
@@ -194,49 +192,49 @@
             }
         }
 
-        getRandomVelocity(){
+        getRandomVelocity() {
             this.targetVel.x = this.velocity.x + (Math.random() - .5);
             this.targetVel.y = this.velocity.y + (Math.random() - .5);
         }
 
-        updateAcceleration(){
+        updateAcceleration() {
             this.acceleration = Vector.difference(this.targetVel, this.velocity);
             this.acceleration.scaleBy(0.1);
         }
 
 
-        getBearing (){
+        getBearing() {
             return Math.atan2(this.velocity.y, this.velocity.x) * 180 / Math.PI;
         }
 
-        getScaleFactor (){
+        getScaleFactor() {
             let lifeSpan = 0;
-            if (this.type = "prey"){
+            if (this.type = "prey") {
                 lifeSpan = app.preyLifeSpan;
             }
-            else{
+            else {
                 lifeSpan = app.predatorLifeSpan;
             }
-            if (this.age < .25 * lifeSpan){
+            if (this.age < .25 * lifeSpan) {
                 return (this.scaleFactor * (this.age / (.25 * lifeSpan)));
             }
             return this.scaleFactor;
         }
 
-        updateVelocity (){
+        updateVelocity() {
             this.velocity.add(this.acceleration);
             this.velocity.normalize();
         }
 
-        updatePosition (){
+        updatePosition() {
             this.position.add(this.velocity);
         }
 
-        setAcceleration (v1){
+        setAcceleration(v1) {
             this.acceleration = v1;
         }
 
-        resetAcceleration (){
+        resetAcceleration() {
             this.acceleration.x = 0;
             this.acceleration.y = 0;
         }
@@ -251,80 +249,79 @@
             this.y = y;
         }
 
-        reset () {
+        reset() {
             this.x = 0;
             this.y = 0;
         }
 
-        equals(v1){
-            if (this.x === v1.x && this.y === v1.y){
+        equals(v1) {
+            if (this.x === v1.x && this.y === v1.y) {
                 return true;
             }
             return false;
         }
 
-        normalize (){
+        normalize() {
             let mag = this.magnitude();
-            if (mag === 0){
+            if (mag === 0) {
                 return;
             }
             return this.scaleBy(1 / mag);
 
         }
 
-        magnitude (){
+        magnitude() {
             return Math.sqrt(((this.x) * (this.x) + (this.y) * (this.y)));
 
         }
 
-        scaleBy (val){
-             this.x *= val;
-             this.y *= val;
+        scaleBy(val) {
+            this.x *= val;
+            this.y *= val;
 
         }
 
-        setX (val){
+        setX(val) {
             this.x = val;
         }
 
-        setY (val){
+        setY(val) {
             this.y = val;
         }
 
-        getX (){
+        getX() {
             return this.x
         }
 
-        getY (){
+        getY() {
             return this.y
         }
 
 
-
-        add (v1) {
+        add(v1) {
             this.x += v1.x;
             this.y += v1.y;
         }
 
-        static difference (v1, v2){
-            return new Vector (v1.x - v2.x, v1.y - v2.y);
+        static difference(v1, v2) {
+            return new Vector(v1.x - v2.x, v1.y - v2.y);
         }
 
-        static distanceSquared (v1, v2){
+        static distanceSquared(v1, v2) {
             return ((v1.x - v2.x) * (v1.x - v2.x) + (v1.y - v2.y) * (v1.y - v2.y));
         }
 
-        static distance (v1, v2) {
+        static distance(v1, v2) {
             return Math.sqrt(((v1.x - v2.x) * (v1.x - v2.x) + (v1.y - v2.y) * (v1.y - v2.y)));
         }
     }
 
 
-    function getAvoidanceVelocity(agent){
-        let difference = new Vector (0,0);
-        let velocityToNeighbor = new Vector (0,0);
-        let velocitySum = new Vector (0,0);
-        for (let i = 0; i < agent.neighbors.length; i++){
+    function getAvoidanceVelocity(agent) {
+        let difference = new Vector(0, 0);
+        let velocityToNeighbor = new Vector(0, 0);
+        let velocitySum = new Vector(0, 0);
+        for (let i = 0; i < agent.neighbors.length; i++) {
             if (Vector.distanceSquared(agent.position, agent.neighbors[i].position) < app.avoidanceRadius * app.avoidanceRadius) {
                 velocityToNeighbor = Vector.difference(agent.neighbors[i].position, agent.position);
                 velocityToNeighbor.scaleBy(-1);
@@ -335,9 +332,9 @@
         return velocitySum;
     }
 
-    function getAlignmentVelocity(agent){
-        let velocitySum = new Vector (0,0);
-        for (let i = 0; i < agent.neighbors.length; i++){
+    function getAlignmentVelocity(agent) {
+        let velocitySum = new Vector(0, 0);
+        for (let i = 0; i < agent.neighbors.length; i++) {
             velocitySum.add(agent.neighbors[i].velocity);
         }
         velocitySum.scaleBy(1 / agent.neighbors.length);
@@ -345,10 +342,10 @@
         return velocitySum;
     }
 
-    function getCohesionVelocity(agent){
-        let positionSum = new Vector (0,0);
+    function getCohesionVelocity(agent) {
+        let positionSum = new Vector(0, 0);
 
-        for (let i = 0; i < agent.neighbors.length; i++){
+        for (let i = 0; i < agent.neighbors.length; i++) {
             positionSum.add(agent.neighbors[i].position);
         }
         positionSum.scaleBy(1 / agent.neighbors.length);
@@ -356,7 +353,6 @@
         vectorToCenter.normalize();
         return vectorToCenter;
     }
-
 
 
     var app = new Vue({
@@ -386,7 +382,7 @@
             population: 0,
             attackRadius: 50,
             runRadius: 40,
-            killRadius: 3,
+            killRadius: 5,
             alignmentRadius: 50,
             alignmentWeight: 1,
             avoidanceWeight: 1,
@@ -397,32 +393,34 @@
             updateRate: 10,
         },
 
-        delimiters: ["<%","%>"],
+        delimiters: ["<%", "%>"],
 
         methods: {
 
-            importStates: function(){
+            importStates: function () {
                 let url = "{% url 'game:importstates' %}";
                 $.ajax({method: "GET", url: url})
-                .done(function (data) {
-                    console.log(data);
-                    app.states = data.states;
-                })
-                .fail(function () {
-                    alert('Fail!');
-                })
+                    .done(function (data) {
+                        console.log(data);
+                        app.states = data.states;
+                    })
+                    .fail(function () {
+                        alert('Fail!');
+                    })
             },
 
-            saveState: function(){
+            saveState: function () {
                 let url = "{% url 'game:savestate' %}";
                 let csrf_token = Cookies.get('csrftoken');
-                let data = JSON.stringify({title: app.title,
-                        alignmentRadius: app.alignmentRadius,
-                        alignmentWeight: app.alignmentWeight,
-                        avoidanceRadius: app.avoidanceRadius,
-                        avoidanceWeight: app.avoidanceWeight,
-                        cohesionRadius: app.cohesionRadius,
-                        cohesionWeight: app.cohesionWeight});
+                let data = JSON.stringify({
+                    title: app.title,
+                    alignmentRadius: app.alignmentRadius,
+                    alignmentWeight: app.alignmentWeight,
+                    avoidanceRadius: app.avoidanceRadius,
+                    avoidanceWeight: app.avoidanceWeight,
+                    cohesionRadius: app.cohesionRadius,
+                    cohesionWeight: app.cohesionWeight
+                });
                 console.log(data);
                 $.ajax({
                     method: "POST",
@@ -440,15 +438,15 @@
                 this.view = 'play';
             },
 
-            cancelSave: function(){
+            cancelSave: function () {
                 this.view = 'play';
             },
 
-            cancelLoad: function(){
+            cancelLoad: function () {
                 this.view = 'play';
             },
 
-            loadState: function() {
+            loadState: function () {
 
                 console.log("id:", app.loadId);
                 for (let i = 0; i < app.states.length; i++) {
@@ -466,16 +464,16 @@
                 app.view = 'play';
             },
 
-            showSave: function(){
+            showSave: function () {
                 this.view = 'save';
             },
 
-            showLoad: function(){
+            showLoad: function () {
                 this.animating = false;
                 this.view = 'load';
             },
 
-            showPlay: function(){
+            showPlay: function () {
                 this.view = 'play';
             },
 
@@ -491,24 +489,24 @@
                 return agent.color;
             },
 
-            opacityString: function (agent){
+            opacityString: function (agent) {
                 let lifeSpan = 0;
-                if (agent.type = "prey"){
+                if (agent.type = "prey") {
                     lifeSpan = app.preyLifeSpan;
                 }
-                else{
+                else {
                     lifeSpan = app.predatorLifeSpan;
                 }
-                if (agent.age > .75 * lifeSpan){
+                if (agent.age > .75 * lifeSpan) {
                     return (lifeSpan - agent.age) / (.25 * lifeSpan);
                 }
                 return 1;
             },
 
-            removeDead: function(group, dead) {
+            removeDead: function (group, dead) {
                 let alive = [];
-                for ( let i = 0; i < group.length; i++){
-                    if (dead.indexOf(i) === -1){
+                for (let i = 0; i < group.length; i++) {
+                    if (dead.indexOf(i) === -1) {
                         alive.push(group[i])
                     }
                 }
@@ -518,7 +516,7 @@
             createPredator: function () {
                 let id = this.predatorIdCount;
                 let age = 0;
-                if (this.predatorIdCount < this.initialPredPop){
+                if (this.predatorIdCount < this.initialPredPop) {
                     age = Math.floor(Math.random() * 10 + 1);
                 }
                 let position = new Vector(Math.floor(Math.random() * 350 + 25), Math.floor(Math.random() * 350 + 25));
@@ -532,7 +530,7 @@
             createPrey: function () {
                 let id = this.preyIdCount;
                 let age = 0;
-                if (this.preyIdCount < this.initialPreyPop){
+                if (this.preyIdCount < this.initialPreyPop) {
                     age = Math.floor(Math.random() * 10 + 1);
                 }
                 let position = new Vector(Math.floor(Math.random() * 350 + 25), Math.floor(Math.random() * 350 + 25));
@@ -555,12 +553,11 @@
             updateAgents: function () {
                 let predator = {};
                 let prey = {};
-                let avoidanceVelocity = new Vector (0, 0);
-                let alignmentVelocity = new Vector (0, 0);
-                let cohesionVelocity = new Vector (0, 0);
+                let avoidanceVelocity = new Vector(0, 0);
+                let alignmentVelocity = new Vector(0, 0);
+                let cohesionVelocity = new Vector(0, 0);
                 let deadPredators = [];
                 let deadPrey = [];
-
 
 
                 if (this.animating) {
@@ -569,13 +566,13 @@
                 }
 
                 //Update Predators
-                if (this.tick % this.predatorReproduction === 0 && this.predators.length >= 2){
+                if (this.tick % this.predatorReproduction === 0 && this.predators.length >= 2) {
                     this.createPredator();
                 }
-                for (let i = 0; i < this.predators.length; i ++){
+                for (let i = 0; i < this.predators.length; i++) {
                     predator = this.predators[i];
                     predator.age++;
-                    if(predator.age > app.predatorLifeSpan){
+                    if (predator.age > app.predatorLifeSpan) {
                         deadPredators.push(i);
                     }
 
@@ -598,9 +595,9 @@
                                 predator.targetVel.scaleBy(this.predatorSpeed);
                                 predator.updateAcceleration();
                             }
-                            else{
+                            else {
                                 for (let j = 0; j < app.preys.length; j++) {
-                                    if (Vector.distanceSquared(predator.position, app.preys[j].position) < app.killRadius * app.killRadius){
+                                    if (Vector.distanceSquared(predator.position, app.preys[j].position) < app.killRadius * app.killRadius) {
                                         deadPrey.push(i);
                                         console.log('kill');
                                     }
@@ -615,7 +612,7 @@
                                 }
                             }
 
-                            if (!attacking){
+                            if (!attacking) {
                                 predator.getRandomVelocity();
                                 predator.velocity.scaleBy(this.predatorSpeed);
                                 predator.updateAcceleration();
@@ -627,38 +624,38 @@
                     predator.velocity.scaleBy(this.predatorSpeed);
                     predator.updatePosition();
                 }
-                if (deadPredators.length > 0){
+                if (deadPredators.length > 0) {
                     this.predators = this.removeDead(this.predators, deadPredators);
                 }
 
                 deadPredators = [];
                 //Update Prey
 
-                if (this.tick % this.preyReproduction === 0 && this.preys.length >= 2){
+                if (this.tick % this.preyReproduction === 0 && this.preys.length >= 2) {
                     this.createPrey();
                 }
 
                 for (let i = 0; i < this.preys.length; i++) {
                     prey = this.preys[i];
                     prey.age++;
-                    if(prey.age > app.preyLifeSpan){
+                    if (prey.age > app.preyLifeSpan) {
                         deadPrey.push(i);
                     }
 
 
-                    if (prey.id % 10 === this.tick % 10){
+                    if (prey.id % 10 === this.tick % 10) {
                         let running = false;
                         prey.neighbors = [];
                         prey.targetVel.reset();
                         prey.acceleration.reset();
-                        if (prey.outOfBounds()){
+                        if (prey.outOfBounds()) {
                             prey.updateOutOfBoundsVelocity();
                             prey.velocity.scaleBy(this.preySpeed);
                             prey.updateAcceleration();
                         }
                         else {
-                            for (let j = 0; j < app.predators.length; j++){
-                                if (Vector.distanceSquared(prey.position, app.predators[j].position) < app.runRadius * app.runRadius){
+                            for (let j = 0; j < app.predators.length; j++) {
+                                if (Vector.distanceSquared(prey.position, app.predators[j].position) < app.runRadius * app.runRadius) {
                                     prey.targetVel = Vector.difference(prey.position, app.predators[j].position);
                                     prey.targetVel.normalize();
                                     prey.targetVel.scaleBy(this.preySpeed);
@@ -693,7 +690,7 @@
                     }
 
                     prey.updateVelocity();
-                    prey.targetVel.scaleBy(this.preySpeed);
+                    prey.velocity.scaleBy(this.preySpeed);
                     prey.updatePosition();
 
                 }
@@ -704,16 +701,16 @@
                 deadPrey = [];
             },
 
-            play: function(){
+            play: function () {
                 this.animating = true;
                 animationId = window.requestAnimationFrame(this.updateAgents);
             },
 
-            pause: function(){
+            pause: function () {
                 this.animating = false;
             },
 
-            reset: function(){
+            reset: function () {
                 this.animating = false;
 
                 window.cancelAnimationFrame(animationId);
@@ -726,19 +723,19 @@
         },
 
         computed: {
-            disablePlay: function(){
+            disablePlay: function () {
                 return (this.animating || this.view === 'save' || this.view === 'load');
             },
 
-            disablePause: function() {
+            disablePause: function () {
                 return !this.animating;
             },
 
-            disableSave: function(){
+            disableSave: function () {
                 return this.title.length === 0;
             },
 
-            disableLoad: function() {
+            disableLoad: function () {
                 return false;
             }
         },
